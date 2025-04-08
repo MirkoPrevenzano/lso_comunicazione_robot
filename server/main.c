@@ -42,11 +42,20 @@ void *handle_client(void *arg) {
                         printf("Body non valido o mancante\n");
                     }
                 }
-                else if(strcmp(path->valuestring, "/login")==0){
+                else if (strcmp(path->valuestring, "/login") == 0) {
                     if (body && cJSON_IsString(body)) {
-                        handle_login(body);
+                        bool login_success = handle_login(body);
+                   
+                        char response_message[BUFFER];
+                        if (login_success) {
+                            snprintf(response_message, sizeof(response_message), "Login eseguito con successo");
+                        } else {
+                            snprintf(response_message, sizeof(response_message), "Login fallito: credenziali errate");
+                        }
+                        write(client_sock, response_message, strlen(response_message));
                     } else {
                         printf("Body non valido o mancante\n");
+                        write(client_sock, "Body non valido o mancante", strlen("Body non valido o mancante"));
                     }
                 }
                 else if(strcmp(path->valuestring,"/get-film")==0){
@@ -72,7 +81,13 @@ void *handle_client(void *arg) {
                 }
                 else if(strcmp(path->valuestring,"/check-prestito")==0){
                     if (body && cJSON_IsString(body)) {
-                        handle_check_prestito(body);
+                        bool response = handle_check_prestito(body);
+                        char response_message[BUFFER];
+                        /*La funzione snprintf è utilizzata per formattare una stringa 
+                            e scriverla in un buffer, garantendo che non venga superata la 
+                            dimensione massima del buffer.*/
+                        snprintf(response_message, sizeof(response_message), "prestito:%s", response ? "true" : "false");
+                        write(client_sock, response_message, strlen(response_message));
                     } else {
                         printf("Body non valido o mancante\n");
                     }

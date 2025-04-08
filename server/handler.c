@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <cjson/cJSON.h>
+#include <string.h>
 #include "handler.h"
 
 void handle_prestito(cJSON *body){
@@ -21,12 +22,31 @@ void handle_restituzione(cJSON *body){
 bool handle_login(cJSON *body) {
     if (body && cJSON_IsString(body)) {
         printf("Dati ricevuti per login: %s\n", body->valuestring);
+
+        cJSON *credentials = cJSON_Parse(body->valuestring);
+        if (credentials == NULL) {
+            printf("Errore nel parsing del JSON delle credenziali\n");
+            return false;
+        }
+
+        // Estraggo i campi username e password
+        cJSON *username = cJSON_GetObjectItem(credentials, "username");
+        cJSON *password = cJSON_GetObjectItem(credentials, "password");
+
+        if (username && cJSON_IsString(username) && password && cJSON_IsString(password)) {
+            if (strcmp(username->valuestring, "admin") == 0 && strcmp(password->valuestring, "1234") == 0) {
+                cJSON_Delete(credentials);
+                return true;
+            }
+        }
+
+        cJSON_Delete(credentials);
+        return false;
     } else {
         printf("Body non valido per login\n");
+        return false;
     }
-    return true;
-}    
-
+}
 
 cJSON *handle_get_film(cJSON *body){
     if (body && cJSON_IsString(body)) {

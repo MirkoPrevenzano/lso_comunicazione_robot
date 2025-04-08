@@ -4,7 +4,7 @@ import time
 def send_to_server(path, body):
     messaggio = {
         "path": path,
-        "body": body
+        "body": json.dumps(body)
     }
     s= socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     print("Tentativo di connessione al server...")
@@ -13,7 +13,8 @@ def send_to_server(path, body):
     json_data = json.dumps(messaggio)
     print(json_data)
     s.sendall(json_data.encode())
-    time.sleep(2)
+    risposta = s.recv(2048).decode()
     s.close()
+    return risposta
 
 
