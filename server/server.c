@@ -6,18 +6,14 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <pthread.h>
+#include <cjson/cJSON.h> //installata libreria esterna
 
 #define PORT 8080
 #define BUFFER_SIZE 1024
 #define MAX_GIOCATORI 8
 #define MAX_GAME 8
 
-typedef struct {
-    int id;
-    GIOCATORE* Giocatori[2];
-    GIOCATORE* GiocatoreProprietario;
-    int TRIS[3][3];
-}GAME;
+
 //ogni gioco deve sempre avere un proprietario in qualsiasi momento
 
 typedef struct {
@@ -26,6 +22,13 @@ typedef struct {
     char nome[30]; //nome di massimo 30 char
     int in_partita;//valore 0 o 1
 }GIOCATORE;
+
+typedef struct {
+    int id;
+    GIOCATORE* Giocatori[2];
+    GIOCATORE* GiocatoreProprietario;
+    int TRIS[3][3];
+}GAME;
 
 int static numero_connessioni=0;
 int static numero_partite=0;
@@ -49,7 +52,7 @@ GAME*aggiungi_game_queue(GIOCATORE* giocatoreProprietario){
 		if(!Partite[i]){
             Partite[i]=nuova_partita;
 			Partite[i]->GiocatoreProprietario = giocatoreProprietario;
-            Partite[i]->Giocatore[1] = giocatoreProprietario;
+            Partite[i]->Giocatori[1] = giocatoreProprietario;
             Partite[i]->id=numero_connessioni;
 			break;
 		}
@@ -66,11 +69,7 @@ void crea_game(int*flag,GIOCATORE* giocatore){
 void partecipa_game(int*flag,GIOCATORE* giocatore){
     //okey bisogna inviare al client tutti le lobby disponibili
     //poi il client sceglie una lobby libera
-    int valread = read(socket_nuovo,buffer,sizeof(buffer));
-    int num=0;
-    if(valread>0)
-        num = atoi(buffer);
-    
+   
 }
 
 
@@ -136,11 +135,32 @@ void handle_client(void *arg){
     nuovo_giocatore->id = numero_connessioni;
     nuovo_giocatore->in_partita=0;
 
-    if(recv(nuovo_giocatore->socket, nome, 30, 0) <= 0 || strlen(nome) <  2 || strlen(nome) >= 30-1){
-		send(socket_nuovo,msg1,strlen(msg1),0);
-		leave_flag = 1;
-	}else
-		strcpy(nuovo_giocatore->nome, nome);
+    int size = read(client_sock, buffer, sizeof(buffer)-1);
+    if(size > 0){
+        buffer[size] = '\0';
+
+        cJSON *json = cJSON_Parse(buffer);
+
+        if(json==NULL){
+            printf("Error nel parser");
+            leave_flag=1;
+        }else{
+            cJSON *path = cJSON_GetObjectItem(json, "path");
+            cJSON *body = cJSON_GetObjectItem(json, "body");
+            cJSON *body_nick=cJSON_GetObjectItem(body,"nickname");
+            if (path && path->valuestring) {
+                if(strcmp(path->valuestring,"/register")==0){
+                    if (body && cJSON_IsString(body)) {
+                        strcpy(nuovo_giocatore->nome,body_nick->valuestring);
+
+            }else
+                leave_flag=1;
+                }else
+                    leave_flag=1;
+                    }else   
+                        leave_flag=1;
+                }
+        
 
     queue_add(nuovo_giocatore);
 
@@ -149,8 +169,11 @@ void handle_client(void *arg){
 			break;
 		}
         
-
+        printf("test_successo");
+        leave_flag=1;
+          
         }
+    }
     
         send(nuovo_giocatore->socket,msg2,strlen(msg2),0);
         close(nuovo_giocatore->socket);
@@ -212,7 +235,6 @@ int main(){
             send(socket_nuovo,msg1,strlen(msg1),0);
             close(*socket_nuovo);
             free(socket_nuovo);
-            continue;
         } 
     }
 
