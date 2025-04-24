@@ -212,6 +212,7 @@ int main(){
             send(socket_nuovo,msg1,strlen(msg1),0);
             close(*socket_nuovo);
             free(socket_nuovo);
+            continue;
         } 
     }
 
