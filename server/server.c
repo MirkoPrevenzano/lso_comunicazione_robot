@@ -10,7 +10,15 @@
 #define PORT 8080
 #define BUFFER_SIZE 1024
 #define MAX_GIOCATORI 8
-#define MAX_GAME 4
+#define MAX_GAME 8
+
+typedef struct {
+    int id;
+    GIOCATORE* Giocatori[2];
+    GIOCATORE* GiocatoreProprietario;
+    int TRIS[3][3];
+}GAME;
+//ogni gioco deve sempre avere un proprietario in qualsiasi momento
 
 typedef struct {
     int * socket;
@@ -20,20 +28,51 @@ typedef struct {
 }GIOCATORE;
 
 int static numero_connessioni=0;
+int static numero_partite=0;
 char *msg = "numero max di giocatori raggiunto.";
 char *msg1 = "errore";
 char *msg2 = "disconnesione";
 GIOCATORE* Giocatori[MAX_GIOCATORI];
-GIOCATORE* Game[2][MAX_GAME];
+GAME* Partite[MAX_GAME];
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t lock2 = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t lock3 = PTHREAD_MUTEX_INITIALIZER;
 
-//totale di 4 partite contemporaneamnete
-//l'idea è avere 4 slot (lobby) in cui giocatori entrano e giocano contro l'avversario
-//se si hanno più di 4 partite si dice al client di aspettare , finche non si liberà un posto.
 //GIOCATORE* Giocatori[MAX_GIOCATORI]; verrà trattata come una pseudo-coda.
+//GIOCATORE* Game[2][MAX_GAME]; verrà trattata come una pseudo-coda.
 
-void nuovo_game(int i,int*flag,GIOCATORE* giocatore){};
+GAME*aggiungi_game_queue(GIOCATORE* giocatoreProprietario){
+    pthread_mutex_lock(&lock3);
+    GAME *nuova_partita = (GAME *)malloc(sizeof(GAME));
+    numero_connessioni++;
+    for(int i=0; i < MAX_GAME; ++i){
+		if(!Partite[i]){
+            Partite[i]=nuova_partita;
+			Partite[i]->GiocatoreProprietario = giocatoreProprietario;
+            Partite[i]->Giocatore[1] = giocatoreProprietario;
+            Partite[i]->id=numero_connessioni;
+			break;
+		}
+	}
+    pthread_mutex_unlock(&lock3);
+    return nuova_partita;
+};
+
+void crea_game(int*flag,GIOCATORE* giocatore){
+   
+    
+}
+
+void partecipa_game(int*flag,GIOCATORE* giocatore){
+    //okey bisogna inviare al client tutti le lobby disponibili
+    //poi il client sceglie una lobby libera
+    int valread = read(socket_nuovo,buffer,sizeof(buffer));
+    int num=0;
+    if(valread>0)
+        num = atoi(buffer);
+    
+}
+
 
 void aggiorna_numero_connessioni(int * socket_nuovo){
     pthread_mutex_lock(&lock);
@@ -109,29 +148,7 @@ void handle_client(void *arg){
         if(leave_flag){
 			break;
 		}
-        //l'idea è che nella GUI si trovano 4 pulsanti , ognuno di loro rappresenta una lobby
-        //quando il client clicca una lobby(pulsante) invia un numero al server
-        //il server controlla se la lobby ha un posto libero
-        int valread = read(socket_nuovo,buffer,sizeof(buffer));
-        int num=0;
-        if(valread>0)
-            num = atoi(buffer);//dovrei svuotare il buffer?
         
-        switch(num){
-            case 1:
-                nuovo_game(1,&leave_flag,nuovo_giocatore);
-                break;
-            case 2:
-                nuovo_game(2,&leave_flag,nuovo_giocatore);
-                break;
-            case 3:
-                nuovo_game(3,&leave_flag,nuovo_giocatore);
-                break;
-            case 4:
-                nuovo_game(4,&leave_flag,nuovo_giocatore);
-                break;
-        }
-
 
         }
     
@@ -195,7 +212,6 @@ int main(){
             send(socket_nuovo,msg1,strlen(msg1),0);
             close(*socket_nuovo);
             free(socket_nuovo);
-            continue;
         } 
     }
 
