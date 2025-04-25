@@ -130,7 +130,9 @@ void *handle_client(void *arg){
 	char nome[30];
 	int leave_flag = 0;
     int * socket_nuovo=(int*)arg;
-    
+    printf("Si connette\n");
+    fflush(stdout);
+
     GIOCATORE *nuovo_giocatore = (GIOCATORE *)malloc(sizeof(GIOCATORE));
     nuovo_giocatore->socket = socket_nuovo;
     nuovo_giocatore->id = numero_connessioni;
@@ -139,41 +141,67 @@ void *handle_client(void *arg){
     int size = read(*socket_nuovo, buffer, sizeof(buffer)-1);
     if(size > 0){
         buffer[size] = '\0';
-
+        printf("Buffer ricevuto: %s\n", buffer);
+        fflush(stdout);
         cJSON *json = cJSON_Parse(buffer);
 
-        if(json==NULL){
-            printf("Error nel parser");
-            leave_flag=1;
-        }else{
-            cJSON *path = cJSON_GetObjectItem(json, "path");
-            cJSON *body = cJSON_GetObjectItem(json, "body");
-            cJSON *body_nick=cJSON_GetObjectItem(body,"nickname");
-            if (path && path->valuestring) {
-                if(strcmp(path->valuestring,"/register")==0){
-                    if (body && cJSON_IsString(body)) {
-                        strcpy(nuovo_giocatore->nome,body_nick->valuestring);
+    if (json == NULL) {
+        printf("Errore nel parser JSON\n");
+        leave_flag = 1;
+    } else {
+        cJSON *path = cJSON_GetObjectItem(json, "path");
+        cJSON *body = cJSON_GetObjectItem(json, "body");
 
-            }else
-                leave_flag=1;
-                }else
-                    leave_flag=1;
-                    }else   
-                        leave_flag=1;
+        if (path && path->valuestring) {
+            if (strcmp(path->valuestring, "/register") == 0) {
+                if (body && cJSON_IsString(body)) {
+                    // Parsing del JSON annidato in "body"
+                    cJSON *body_json = cJSON_Parse(body->valuestring);
+                    if (body_json) {
+                        cJSON *body_nick = cJSON_GetObjectItem(body_json, "nickname");
+                        if (body_nick && cJSON_IsString(body_nick)) {
+                            printf("Nickname : %s\n", body_nick->valuestring);
+                            strcpy(nuovo_giocatore->nome, body_nick->valuestring);
+                        } else {
+                            printf("Il campo 'nickname' non è presente o non è una stringa\n");
+                            leave_flag = 1;
+                        }
+                        cJSON_Delete(body_json); // Libera la memoria del JSON annidato
+                    } else {
+                        printf("Errore  JSON annidato in 'body'\n");
+                        leave_flag = 1;
+                    }
+                } else {
+                    printf("Il campo 'body' non è presente o non è una stringa\n");
+                    leave_flag = 1;
                 }
-        
+            } else {
+                printf("no path register: %s\n", path->valuestring);
+                leave_flag = 1;
+            }
+        } else {
+            printf("path non valido\n");
+            leave_flag = 1;
+        }
+        cJSON_Delete(body);
+        cJSON_Delete(path); 
 
-    queue_add(nuovo_giocatore);
 
-    while(1){
-        if(leave_flag){
-			break;
-		}
-        
-        printf("test_successo");
-        leave_flag=1;
-          
-        }}
+    }
+
+        queue_add(nuovo_giocatore);
+
+        while(1){
+            if(leave_flag){
+                break;
+            }
+            
+            printf("test_successo");
+            leave_flag=1;
+            
+        }
+    }
+    printf("Sonoqu");
     
     
         send(*(nuovo_giocatore->socket),msg2,strlen(msg2),0);
@@ -185,6 +213,7 @@ void *handle_client(void *arg){
 };
 
 int main(){
+  
 
     int fd;
     struct sockaddr_in address;
@@ -221,13 +250,20 @@ int main(){
     }
 
     while(1){
+        printf("Sono in attesa\n");
+        fflush(stdout);
+
         int * socket_nuovo = (int*)malloc(sizeof(int));
         if ((*socket_nuovo = accept(fd, (struct sockaddr *)&address,(socklen_t*)&addrlen)) < 0) {
             perror("errore_accept");
             free(socket_nuovo);
             continue;
-        }else
+        }else{
+            printf("Aggiungo connessione\n");
+            fflush(stdout);
+
             aggiorna_numero_connessioni(socket_nuovo);
+        }
             //visto che si aggiorna una variabile che potrebbe essere usata da diversi thread occuore un mutex
 
         pthread_t thread_id;
@@ -242,4 +278,3 @@ int main(){
         close(fd);
         return 0;
     }
-
