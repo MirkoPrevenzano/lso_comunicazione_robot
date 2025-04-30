@@ -1,78 +1,7 @@
 
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <sys/un.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <pthread.h>
-#include <stdlib.h>
-#include <cjson/cJSON.h> //installata libreria esterna
-
-#define PORT 8080
-#define BUFFER_SIZE 1024
-#define MAX_GIOCATORI 8
-#define MAX_GAME 8
-
-
+#include "./server.h"
 //ogni gioco deve sempre avere un proprietario in qualsiasi momento
-
-typedef struct {
-    int * socket;
-    int id;
-    char nome[30]; //nome di massimo 30 char
-    int in_partita;//valore 0 o 1
-}GIOCATORE;
-
-typedef struct {
-    int id;
-    GIOCATORE* Giocatori[2];
-    GIOCATORE* GiocatoreProprietario;
-    int TRIS[3][3];
-}GAME;
-
-int static numero_connessioni=0;
-int static numero_partite=0;
-char *msg = "numero max di giocatori raggiunto.";
-char *msg1 = "errore";
-char *msg2 = "disconnesione";
-GIOCATORE* Giocatori[MAX_GIOCATORI];
-GAME* Partite[MAX_GAME];
-pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t lock2 = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t lock3 = PTHREAD_MUTEX_INITIALIZER;
-
 //GIOCATORE* Giocatori[MAX_GIOCATORI]; verrà trattata come una pseudo-coda.
-//GIOCATORE* Game[2][MAX_GAME]; verrà trattata come una pseudo-coda.
-
-GAME*aggiungi_game_queue(GIOCATORE* giocatoreProprietario){
-    pthread_mutex_lock(&lock3);
-    GAME *nuova_partita = (GAME *)malloc(sizeof(GAME));
-    numero_connessioni++;
-    for(int i=0; i < MAX_GAME; ++i){
-		if(!Partite[i]){
-            Partite[i]=nuova_partita;
-			Partite[i]->GiocatoreProprietario = giocatoreProprietario;
-            Partite[i]->Giocatori[1] = giocatoreProprietario;
-            Partite[i]->id=numero_connessioni;
-			break;
-		}
-	}
-    pthread_mutex_unlock(&lock3);
-    return nuova_partita;
-};
-
-void crea_game(int*flag,GIOCATORE* giocatore){
-   
-    
-}
-
-void partecipa_game(int*flag,GIOCATORE* giocatore){
-    //okey bisogna inviare al client tutti le lobby disponibili
-    //poi il client sceglie una lobby libera
-   
-}
-
 
 void aggiorna_numero_connessioni(int * socket_nuovo){
     pthread_mutex_lock(&lock);
@@ -136,7 +65,6 @@ void *handle_client(void *arg){
     GIOCATORE *nuovo_giocatore = (GIOCATORE *)malloc(sizeof(GIOCATORE));
     nuovo_giocatore->socket = socket_nuovo;
     nuovo_giocatore->id = numero_connessioni;
-    nuovo_giocatore->in_partita=0;
 
     int size = read(*socket_nuovo, buffer, sizeof(buffer)-1);
     if(size > 0){
@@ -195,13 +123,11 @@ void *handle_client(void *arg){
             if(leave_flag){
                 break;
             }
-            
-            printf("test_successo");
-            leave_flag=1;
+           handlerInviaGames(socket_nuovo,buffer);
+           handlerGames(&leave_flag,socket_nuovo,buffer,nuovo_giocatore);
             
         }
     }
-    printf("Sonoqu");
     
     
         send(*(nuovo_giocatore->socket),msg2,strlen(msg2),0);
@@ -261,10 +187,9 @@ int main(){
         }else{
             printf("Aggiungo connessione\n");
             fflush(stdout);
-
             aggiorna_numero_connessioni(socket_nuovo);
         }
-            //visto che si aggiorna una variabile che potrebbe essere usata da diversi thread occuore un mutex
+        //visto che si aggiorna una variabile che potrebbe essere usata da diversi thread occuore un mutex
 
         pthread_t thread_id;
         if (pthread_create(&thread_id, NULL, handle_client, socket_nuovo) != 0) {
