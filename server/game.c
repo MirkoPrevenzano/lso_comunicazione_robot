@@ -123,7 +123,7 @@ void StartGame(int turno,char*buffer,GAME*partita,GIOCATORE*giocatore){
         while(partita_in_corso(partita)&&(leave_game)){
             sem_wait(&(partita->semaforo));
             inviaJsonMatrice(buffer,partita,giocatore);
-            if(partita->turno==turno){/
+            if(partita->turno==turno){
                 riceviJsonMossa(&leave_game,partita,giocatore);
                 if(leave_game==0){
                     if(partita->esito==-1)
