@@ -27,15 +27,7 @@ typedef struct {
     char nome[30]; //nome di massimo 30 char
 }GIOCATORE;
 
-typedef struct {
-    int id;
-    GIOCATORE* Giocatori[2];
-    GIOCATORE* GiocatoreProprietario;
-    int TRIS[3][3];
-    int esito;
-    int turno;
-    sem_t semaforo;
-}GAME;
+
 
 int static numero_connessioni=0;
 int static numero_partite=0;
@@ -44,9 +36,13 @@ char *msg1 = "errore";
 char *msg2 = "disconnesione";
 GIOCATORE* Giocatori[MAX_GIOCATORI];
 GAME* Partite[MAX_GAME];
-pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER; 
 pthread_mutex_t lock2 = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t lock3 = PTHREAD_MUTEX_INITIALIZER;
+//opterei di fare un mutex per ogni grado di informazioni: esempio mutex_partita che blocca accessi simultanei al momento di aggiungere o rimuovere una partita
+//forse un mutex per ogni partita
+//un mutex per l'accesso alla lista dei giocatori 
+//uso di possibili liste linkate
 
 void aggiorna_numero_connessioni(int * socket_nuovo);
 

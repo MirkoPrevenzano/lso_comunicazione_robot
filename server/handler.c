@@ -8,7 +8,7 @@ void crea_json(cJSON *root,int id,char*nome){
 
 bool partita_in_corso(GAME*partita){
     if(partita)
-        return (Partite[i]->Giocatori[1]!=NULL);
+        return (partita->giocatori[1]!=NULL);
     else
         return 0;
 }
@@ -17,11 +17,11 @@ void handlerInviaGames(int * socket_nuovo,char*buffer){
     cJSON*root = cJSON_createObject();
     cJSON *partite_array = cJSON_CreateArray();
     cJSON *partita = NULL;
-    for(int i=0,i<MAX_GAME,i++){
+    for(int i=0;i<MAX_GAME;i++){
         if(Partite[i]!=NULL){
             if(!partita_in_corso(Partite[i])){
             partita = cJSON_CreateObject();
-            crea_Json(partita,Partite[i]->id,Partite[i]->GiocatoreProprietario->nome)
+            crea_Json(partita,Partite[i]->id,Partite[i]->giocatoreProprietario->nome); //che volevi chiamare? Passi 3 argomenti ad una funzione che ne richiede 2
             cJSON_AddItemToArray(partite_array, partita);
     }}}
 

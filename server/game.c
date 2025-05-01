@@ -1,12 +1,12 @@
 #include "./game.h"
 
 GAME*aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario){
-    pthread_mutex_lock(&lock3);
+    pthread_mutex_lock(&lock3); //cos'è lock3? 
     for(int i=0; i < MAX_GAME; i++){
         if(!Partite[i]){
             Partite[i]=nuova_partita;
-            Partite[i]->GiocatoreProprietario = giocatoreProprietario;
-            Partite[i]->Giocatori[0] = giocatoreProprietario;
+            Partite[i]->giocatoreProprietario = giocatoreProprietario;
+            Partite[i]->giocatori[0] = giocatoreProprietario;
             Partite[i]->id=numero_partite;
             Partite[i]->turno=0;
             Partite[i]->esito=-1;
@@ -55,10 +55,10 @@ void crea_game(int*leave_flag,char*buffer,GIOCATORE*giocatore){
 
 void partecipa_game(int*leave_flag,int id_lobby,GIOCATORE*giocatore,char*buffer){
     pthread_mutex_lock(&lock3);
-    GAME*gioco=SearchGiocoByID(id);
+    GAME*gioco=SearchGiocoByID(id_lobby);
     
     if(gioco!=NULL)
-        gioco->Giocatori[1]=giocatore;
+        gioco->giocatori[1]=giocatore;
     else{
         pthread_mutex_unlock(&lock3);
         return;//inviare messaggio d'errore TO-DO
@@ -68,12 +68,12 @@ void partecipa_game(int*leave_flag,int id_lobby,GIOCATORE*giocatore,char*buffer)
     StartGame(1,buffer,gioco,giocatore);
 
     pthread_mutex_lock(&lock3);
-    gioco->Giocatori[1]=NULL;
+    gioco->giocatori[1]=NULL;
     pthread_mutex_unlock(&lock3);
 }
 
 GAME*SearchGiocoByID(int id){
-    for(int i=0,i<MAX_GAME,i++)
+    for(int i=0;i<MAX_GAME;i++)
         if(Partite[i]->id==id)
             return Partite[i];
     return NULL;
@@ -104,11 +104,11 @@ return 0; // Nessuna vittoria
 bool controlla_pareggio(GAME*partita,int esito){
     
     if(esito!=0){
-    int(*matrice)[3]=partita->TRIS;
-    for(int i=0;i<3;i++)
-        for(int j=0;i<3;j++)
-            if(matrice[i][j]==0)
-                return 0
+        int(*matrice)[3]=partita->TRIS;
+        for(int i=0;i<3;i++)
+            for(int j=0;j<3;j++)
+                if(matrice[i][j]==0)
+                    return 0;
     }else
         return 0;
 
@@ -117,12 +117,12 @@ bool controlla_pareggio(GAME*partita,int esito){
 }
 //giocatore 1 avra turno 0 -> il suo simbolo è il numero 1, esito=1 vittoria giocatore 1
 //giocatore 2 avrà turno 1 -> il suo simbolo è il numero 2, esito=2 vittoria giocatore 2
-void StartGame(int turno,char*buffer,GAME*partita,GIOCATORE*giocatore){
+void StartGame(int turno,char*buffer,GAME*partita,GIOCATORE* giocatore){
         int leave_game=1;
         int esito=0;
         while(partita_in_corso(partita)&&(leave_game)){
             sem_wait(&(partita->semaforo));
-            inviaJsonMatrice(buffer,partita,giocatore);
+            inviaJsonMatrice(partita,giocatore); //passavi anche buffer perchè?
             if(partita->turno==turno){
                 riceviJsonMossa(&leave_game,partita,giocatore);
                 if(leave_game==0){
@@ -159,7 +159,7 @@ void switchTurno(GAME*partita){
     }
 }
 
-void inviaJsonMatrice(GAME*partita,GIOCATORE*giocatore){
+void inviaJsonMatrice(GAME*partita, GIOCATORE*giocatore){
     cJSON*root = cJSON_createObject();
     int(*matrice)[3]=partita->TRIS;
     cJSON *json_array = cJSON_CreateArray();
@@ -180,20 +180,20 @@ void inviaJsonMatrice(GAME*partita,GIOCATORE*giocatore){
 void inviaEsitoPartita(int*esito,GAME*partita){
     cJSON*root = cJSON_createObject();
     cJSON_AddStringToObject(root,"path","/esito");
-    cJSON_AddNumberToObject(root,"id_partita",id);
+    cJSON_AddNumberToObject(root,"id_partita",partita->id);
     if(*esito==1){
-        cJSON_AddStringToObject(root,"vincitore",partita->Giocatori[0]->nome);
-        cJSON_AddStringToObject(root,"perdente",partita->Giocatori[1]->nome);
+        cJSON_AddStringToObject(root,"vincitore",partita->giocatori[0]->nome);
+        cJSON_AddStringToObject(root,"perdente",partita->giocatori[1]->nome);
     }
     else if(*esito==2){
-        cJSON_AddStringToObject(root,"vincitore",partita->Giocatori[1]->nome);
-        cJSON_AddStringToObject(root,"perdente",partita->Giocatori[0]->nome);
+        cJSON_AddStringToObject(root,"vincitore",partita->giocatori[1]->nome);
+        cJSON_AddStringToObject(root,"perdente",partita->giocatori[0]->nome);
     }
 
     char*json_str=cJSON_PrintfUnformatted(root);
     cJON_Delete(root);
-    send(*(partita->Giocatori[0]->socket),json_str,strlen(json_str),0);
-    send(*(partita->Giocatori[1]->socket),json_str,strlen(json_str),0);
+    send(*(partita->giocatori[0]->socket),json_str,strlen(json_str),0);
+    send(*(partita->giocatori[1]->socket),json_str,strlen(json_str),0);
 }
 void RiceviJsonMossa(int*leave_game,char*buffer,GAME*partita,GIOCATORE*giocatore){
     if(partita->esito!=-1){

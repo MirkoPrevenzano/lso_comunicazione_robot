@@ -1,5 +1,6 @@
 
 #include "./server.h"
+
 //ogni gioco deve sempre avere un proprietario in qualsiasi momento
 //GIOCATORE* Giocatori[MAX_GIOCATORI]; verrà trattata come una pseudo-coda.
 

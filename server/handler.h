@@ -2,6 +2,7 @@
 #define HANDLER_H 
 
 #include "./server.h"
+#include <stdbool.h>
 
 char*crea_Json(int id,char*type);
 
@@ -9,7 +10,7 @@ bool partita_in_corso(GAME*partita);
 
 void handlerInviaGames(int * socket_nuovo,char*buffer);
 
-void handlerGames(&leave_flag,int*socket_nuovo,char*buffer,GIOCATORE *giocatore);
+void handlerGames(int *leave_flag,int*socket_nuovo,char*buffer,GIOCATORE *giocatore); //passi puntatore a leave fleag, perchè
 
 void Crea_partita_json(int*leave_flag,int*socket_nuovo,char*buffer,cJSON *body,GIOCATORE *giocatore);
 
