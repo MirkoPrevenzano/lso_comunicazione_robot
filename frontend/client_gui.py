@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import ttk
 from login_page import LoginPage
 from home_page import HomePage
 
@@ -6,13 +7,33 @@ class MainApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Client GUI")
-        self.geometry("400x300")
+        self.geometry("530x400")
+        self.resizable(False , False)
 
-        self.container = tk.Frame(self)
+        #Dizionario per salvare info globali
+        self.shared_data= {}
+        # Imposta lo sfondo nero
+        self.configure(bg="black")
+
+        style = ttk.Style()
+        style.theme_use("clam")  # Stile più moderno
+        style.configure("TFrame", background="black")
+        style.configure("Title.TLabel", background="black", foreground="white", font=("Segoe UI", 18, "bold"))
+        style.configure("TLabel", background="black", foreground="white", font=("Segoe UI", 11))
+        style.configure("Status.TLabel", background="black", foreground="white", font=("Segoe UI", 10, "italic"))
+        style.configure("TEntry", fieldbackground="black", foreground="white", insertcolor="white")
+        style.configure("Accent.TButton", background="#2ecc71", foreground="white", font=("Segoe UI", 10, "bold"))
+        style.map("Accent.TButton",
+                  background=[("active", "#27ae60")],
+                  foreground=[("active", "white")])
+
+        # Contenitore principale
+        self.container = tk.Frame(self, bg="black")
         self.container.pack(fill="both", expand=True)
 
         self.frames = {}
 
+        # Inizializza le pagine
         for Page in (LoginPage, HomePage):
             page_name = Page.__name__
             frame = Page(parent=self.container, controller=self)
@@ -25,6 +46,8 @@ class MainApp(tk.Tk):
         """Mostra una pagina specifica."""
         frame = self.frames[page_name]
         frame.tkraise()
+        if hasattr(frame, "update_data"):
+            frame.update_data()
 
 
 if __name__ == "__main__":

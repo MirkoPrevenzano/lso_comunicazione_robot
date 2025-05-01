@@ -7,31 +7,54 @@ class LoginPage(tk.Frame):
         super().__init__(parent)
         self.controller = controller
 
-        ttk.Label(self, text="Username:").grid(row=0, column=0, sticky=tk.W, pady=5)
-        self.username_entry = ttk.Entry(self, width=40)
-        self.username_entry.grid(row=0, column=1, pady=5)
+        self.configure(bg="black")
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=1)
 
-        ttk.Label(self, text="Password:").grid(row=1, column=0, sticky=tk.W, pady=5)
-        self.password_entry = ttk.Entry(self, width=40, show="*")
-        self.password_entry.grid(row=1, column=1, pady=5)
+        content_frame = ttk.Frame(self, style="TFrame", padding=30)
+        content_frame.grid(row=0, column=0, sticky="nsew")
+        content_frame.columnconfigure(0, weight=1)
 
-        send_button = ttk.Button(self, text="Login", command=self.on_login_button_click)
-        send_button.grid(row=2, column=1, pady=10, sticky=tk.E)
+        title_label = ttk.Label(
+            content_frame, 
+            text="Benvenuto al gioco del \nTRIS!\n\n\nInserisci il tuo nickname", 
+            style="Title.TLabel",
+            justify="center"
+        )
+        title_label.grid(row=0, column=0, pady=(0, 30))
 
-        self.status_label = ttk.Label(self, text="")
-        self.status_label.grid(row=3, column=0, columnspan=2, pady=10)
+        input_frame = ttk.Frame(content_frame, style="TFrame")
+        input_frame.grid(row=1, column=0, sticky="ew", pady=10)
+        input_frame.columnconfigure(0, weight=1)
+
+        self.username_entry = ttk.Entry(input_frame, width=30, font=("Segoe UI", 12))
+        self.username_entry.grid(row=0, column=0, sticky="ew", ipady=5)
+
+        send_button = ttk.Button(
+            input_frame, 
+            text="⮕", 
+            command=self.on_login_button_click, 
+            style="Accent.TButton"
+        )
+        send_button.grid(row=0, column=1, padx=(10, 0), ipadx=1, ipady=1)
+
+        self.status_label = ttk.Label(content_frame, text="", style="Status.TLabel", justify="center")
+        self.status_label.grid(row=2, column=0, pady=(20, 0), sticky="ew")
+
+        
 
     def on_login_button_click(self):
-        """Gestisce il click sul pulsante di login."""
         username = self.username_entry.get()
-        password = self.password_entry.get()
+        
 
-        if username and password:
-            response = send_to_server("/login", {"username": username, "password": password})
-            if response == "Login eseguito con successo":
+        if username:
+            response = send_to_server("/register", {"nickname": username})
+            ##if response == "Login eseguito con successo":
+            if(1):
                 self.status_label.config(text=response, foreground="green")
+                self.controller.shared_data['nickname'] = username
                 self.controller.show_frame("HomePage")
             else:
-                self.status_label.config(text="Credenziali errate! Riprova", foreground="red")
+                self.status_label.config(text="Errore: " + response, foreground="red")
         else:
-            self.status_label.config(text="Inserisci sia username che password!", foreground="red")
+            self.status_label.config(text="Inserisci un nickname!", foreground="red")
