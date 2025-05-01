@@ -13,6 +13,7 @@
 #include <cjson/cJSON.h> //installata libreria esterna
 #include "./game.h"
 #include "./handler.h"
+#include "player.h"
 
 #define PORT 8080
 #define BUFFER_SIZE 1024
@@ -21,11 +22,7 @@
 
 //ogni gioco deve sempre avere un proprietario in qualsiasi momento
 
-typedef struct {
-    int * socket;
-    int id;
-    char nome[30]; //nome di massimo 30 char
-}GIOCATORE;
+
 
 
 

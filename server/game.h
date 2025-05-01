@@ -1,8 +1,10 @@
 #ifndef GAME_H
 #define GAME_H
 
-#include "./server.h"
+
 #include <stdbool.h>
+#include "player.h"
+#include <semaphore.h>
 
 typedef struct {
     int id;
@@ -20,7 +22,7 @@ void partecipa_game(int*leave_flag,int id_lobby,char*buffer,GIOCATORE*giocatore)
 
 GAME*aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario);
 
-GIOCATORE*SearchGiocatoreByID(int giocatore_id); //farei file player.h
+GAME *searchPartitaById(int giocatore_id); //farei file player.h
 
 bool controlla_vittoria(GAME*partita,int giocatore,int*esito);
 bool controlla_pareggio(GAME*partita,int esito);

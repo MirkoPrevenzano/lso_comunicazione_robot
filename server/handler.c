@@ -21,7 +21,7 @@ void handlerInviaGames(int * socket_nuovo,char*buffer){
         if(Partite[i]!=NULL){
             if(!partita_in_corso(Partite[i])){
             partita = cJSON_CreateObject();
-            crea_Json(partita,Partite[i]->id,Partite[i]->giocatoreProprietario->nome); //che volevi chiamare? Passi 3 argomenti ad una funzione che ne richiede 2
+            crea_json(partita,Partite[i]->id,Partite[i]->giocatoreProprietario->nome); //che volevi chiamare? Passi 3 argomenti ad una funzione che ne richiede 2
             cJSON_AddItemToArray(partite_array, partita);
     }}}
 
@@ -50,7 +50,7 @@ void handlerGames(int*leave_flag,int*socket_nuovo,char*buffer,GIOCATORE *giocato
 
         if (path && path->valuestring) {
             if (strcmp(path->valuestring, "/crea_partita") == 0) {
-                crea_game(leave_flag,buffer,giocatore);
+                //crea_game(leave_flag,buffer,giocatore);
             }else if(strcmp(path->valuestring, "/partecipa_partita")){
                 partecipa_partita_json(leave_flag,socket_nuovo,buffer,body,giocatore);
             }else {
@@ -78,7 +78,7 @@ void partecipa_partita_json(int *leave_flag,int*socket_nuovo,char*buffer,cJSON*b
             cJSON *id_item = cJSON_GetObjectItem(body_json, "id");
             if (id_item && (cJSON_IsNumber(id_item))) {
                 printf("id : %s\n", id_item->valuestring);
-                partecipa_game(leave_flag,id_item->valuestring,buffer,giocatore);
+                //partecipa_game(leave_flag,id_item->valuestring,buffer,giocatore);
             } else {
                 printf("Il campo 'id' non è presente o non è un numero\n");
                 *leave_flag = 1;

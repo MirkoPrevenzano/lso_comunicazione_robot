@@ -1,7 +1,7 @@
 #include "./game.h"
 
 GAME*aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario){
-    pthread_mutex_lock(&lock3); //cos'è lock3? 
+    pthread_mutex_lock(&lock3);
     for(int i=0; i < MAX_GAME; i++){
         if(!Partite[i]){
             Partite[i]=nuova_partita;
@@ -34,7 +34,7 @@ void rimuovi_game_queue(GAME*partita){
     pthread_mutex_unlock(&lock3);
 }
 
-void crea_game(int*leave_flag,char*buffer,GIOCATORE*giocatore){
+/*void crea_game(int*leave_flag,char*buffer,GIOCATORE*giocatore){
     GAME *nuova_partita = (GAME *)malloc(sizeof(GAME));
     aggiungi_game_queue(nuova_partita,giocatore);
 
@@ -53,7 +53,7 @@ void crea_game(int*leave_flag,char*buffer,GIOCATORE*giocatore){
     
 }
 
-void partecipa_game(int*leave_flag,int id_lobby,GIOCATORE*giocatore,char*buffer){
+void partecipa_game(int*leave_flag,int id_lobby,char*buffer,GIOCATORE *giocatore){
     pthread_mutex_lock(&lock3);
     GAME*gioco=SearchGiocoByID(id_lobby);
     
@@ -72,7 +72,7 @@ void partecipa_game(int*leave_flag,int id_lobby,GIOCATORE*giocatore,char*buffer)
     pthread_mutex_unlock(&lock3);
 }
 
-GAME*SearchGiocoByID(int id){
+GAME* searchPartitaById(int id){
     for(int i=0;i<MAX_GAME;i++)
         if(Partite[i]->id==id)
             return Partite[i];
@@ -205,6 +205,6 @@ void RiceviJsonMossa(int*leave_game,char*buffer,GAME*partita,GIOCATORE*giocatore
 }
 void ModificaArrayTris(int i,int j,int giocatore,GAME*partita){
     partita->TRIS[i][j]=giocatore;
-}
+}*/
 
 

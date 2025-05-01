@@ -1,22 +1,32 @@
 #ifndef HANDLER_H
 #define HANDLER_H 
 
-#include "./server.h"
+#include "player.h"
+#include "game.h"
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <sys/un.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <pthread.h>
+#include <stdlib.h>
+#include <semaphore.h>
+#include <cjson/cJSON.h> //installata libreria esterna
+
 #include <stdbool.h>
 
-char*crea_Json(int id,char*type);
+void crea_json(cJSON *root,int id,char*nome);
 
-bool partita_in_corso(GAME*partita);
+bool partita_in_corso(GAME *partita);
 
-void handlerInviaGames(int * socket_nuovo,char*buffer);
+void handlerInviaGames(int *socket_nuovo,char*buffer);
 
-void handlerGames(int *leave_flag,int*socket_nuovo,char*buffer,GIOCATORE *giocatore); //passi puntatore a leave fleag, perchè
-
-void Crea_partita_json(int*leave_flag,int*socket_nuovo,char*buffer,cJSON *body,GIOCATORE *giocatore);
+void handlerGames(int *leave_flag,int*socket_nuovo,char*buffer,GIOCATORE *giocatore);
 
 void partecipa_partita_json(int *leave_flag,int*socket_nuovo,char*buffer,cJSON*body,GIOCATORE *giocatore);
 
-void handlerRiceviJsonMossa(int*leave_flag,char*buffer,GIOCATORE *giocatore,GAME*partita);
+void handlerRiceviJsonMossa(int *leave_flag,char*buffer,GIOCATORE *giocatore,GAME*partita);
 
 
 #endif
