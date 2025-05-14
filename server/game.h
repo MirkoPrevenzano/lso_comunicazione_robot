@@ -6,34 +6,33 @@
 #include "player.h"
 #include <semaphore.h>
 
-typedef struct {
+typedef struct game{
     int id;
-    GIOCATORE* giocatori[2];
-    GIOCATORE* giocatoreProprietario; //hai doppia info del proprietario in questo modo
+    GIOCATORE* giocatoreParticipante[2]; //giocatori[0] è il proprietario
     int TRIS[3][3];
     int esito;
     int turno;
     sem_t semaforo; //cos'è?
-}GAME;
+} GAME;
 
-void crea_game(int*leave_flag,char*buffer,GIOCATORE*giocatore);
+//void crea_game(int*leave_flag,char*buffer,GIOCATORE*giocatore);
 
-void partecipa_game(int*leave_flag,int id_lobby,char*buffer,GIOCATORE*giocatore);
+//void partecipa_game(int*leave_flag,int id_lobby,char*buffer,GIOCATORE*giocatore);
 
 GAME*aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario);
 
-GAME *searchPartitaById(int giocatore_id); //farei file player.h
+//GAME *searchPartitaById(int giocatore_id); //farei file player.h
 
-bool controlla_vittoria(GAME*partita,int giocatore,int*esito);
-bool controlla_pareggio(GAME*partita,int esito);
+//bool controlla_vittoria(GAME*partita,int giocatore,int*esito);
+//bool controlla_pareggio(GAME*partita,int esito);
 
-void StartGame(int turno,char*buffer,GAME*partita,GIOCATORE*giocatore);
+//void StartGame(int turno,char*buffer,GAME*partita,GIOCATORE*giocatore);
 
-void switchTurno(GAME*partita);
+//void switchTurno(GAME*partita);
 
-void inviaJsonMatrice(GAME*partita,GIOCATORE*giocatore);
-void RiceviJsonMossa(int*leave_game,char*buffer,GAME*partita,GIOCATORE*giocatore);
-void ModificaArrayTris(int i,int j,int giocatore,GAME*partita);
-void inviaEsitoPartita(int*esito,GAME*partita);
+//void inviaJsonMatrice(GAME*partita,GIOCATORE*giocatore);
+//void RiceviJsonMossa(int*leave_game,char*buffer,GAME*partita,GIOCATORE*giocatore);
+//void ModificaArrayTris(int i,int j,int giocatore,GAME*partita);
+//void inviaEsitoPartita(int*esito,GAME*partita);
 
 #endif

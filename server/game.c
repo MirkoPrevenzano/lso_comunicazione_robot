@@ -1,12 +1,11 @@
-#include "./game.h"
-
+#include "game.h"
+#include "server.h"
 GAME*aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario){
-    pthread_mutex_lock(&lock3);
+    pthread_mutex_lock(&gameListLock);
     for(int i=0; i < MAX_GAME; i++){
         if(!Partite[i]){
             Partite[i]=nuova_partita;
-            Partite[i]->giocatoreProprietario = giocatoreProprietario;
-            Partite[i]->giocatori[0] = giocatoreProprietario;
+            Partite[i]->giocatoreParticipante[0] = giocatoreProprietario;
             Partite[i]->id=numero_partite;
             Partite[i]->turno=0;
             Partite[i]->esito=-1;
@@ -14,11 +13,11 @@ GAME*aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario){
         }
     }
     numero_partite++;
-    pthread_mutex_unlock(&lock3);
+    pthread_mutex_unlock(&gameListLock);
     return nuova_partita;
 };
 void rimuovi_game_queue(GAME*partita){
-    pthread_mutex_lock(&lock3);
+    pthread_mutex_lock(&gameListLock);
     if(partita!=NULL){
     numero_partite--;
     for(int i=0; i < MAX_GAME; ++i){
@@ -31,7 +30,7 @@ void rimuovi_game_queue(GAME*partita){
 	}
     free(partita);
 }
-    pthread_mutex_unlock(&lock3);
+    pthread_mutex_unlock(&gameListLock);
 }
 
 /*void crea_game(int*leave_flag,char*buffer,GIOCATORE*giocatore){
@@ -54,22 +53,22 @@ void rimuovi_game_queue(GAME*partita){
 }
 
 void partecipa_game(int*leave_flag,int id_lobby,char*buffer,GIOCATORE *giocatore){
-    pthread_mutex_lock(&lock3);
+    pthread_mutex_lock(&gameListLock);
     GAME*gioco=SearchGiocoByID(id_lobby);
     
     if(gioco!=NULL)
         gioco->giocatori[1]=giocatore;
     else{
-        pthread_mutex_unlock(&lock3);
+        pthread_mutex_unlock(&gameListLock););
         return;//inviare messaggio d'errore TO-DO
     }
-    pthread_mutex_unlock(&lock3);
+    pthread_mutex_unlock(&gameListLock););
     
     StartGame(1,buffer,gioco,giocatore);
 
-    pthread_mutex_lock(&lock3);
+    pthread_mutex_lock(&gameListLock);
     gioco->giocatori[1]=NULL;
-    pthread_mutex_unlock(&lock3);
+    pthread_mutex_unlock(&gameListLock););
 }
 
 GAME* searchPartitaById(int id){

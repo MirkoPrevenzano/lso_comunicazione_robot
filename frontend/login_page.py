@@ -49,12 +49,13 @@ class LoginPage(tk.Frame):
 
         if username:
             response = send_to_server("/register", {"nickname": username})
+            print(response)
             ##if response == "Login eseguito con successo":
-            if(1):
-                self.status_label.config(text=response, foreground="green")
+            if(response == "1"):
+                self.status_label.config(text="Login eseguito con successo", foreground="green")
                 self.controller.shared_data['nickname'] = username
                 self.controller.show_frame("HomePage")
             else:
-                self.status_label.config(text="Errore: " + response, foreground="red")
+                self.status_label.config(text="Errore nel login " , foreground="red")
         else:
             self.status_label.config(text="Inserisci un nickname!", foreground="red")

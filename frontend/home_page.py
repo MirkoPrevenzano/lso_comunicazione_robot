@@ -1,5 +1,8 @@
+import json
 import tkinter as tk
 from tkinter import ttk
+
+from client_network import send_to_server
 
 class HomePage(tk.Frame):
     def __init__(self, parent, controller):
@@ -54,10 +57,58 @@ class HomePage(tk.Frame):
         # Placeholder contenuto
         section2_label = ttk.Label(section2, text="Partite in attesa...", style="TLabel")
         section2_label.pack(padx=(30, 0))
+        self.section2_label = section2_label
+
+        self.games_container = ttk.Frame(section2, style="TFrame")
+        self.games_container.pack(fill="both", expand=True, padx=10, pady=5)
+
+
 
     def update_data(self):
         nickname = self.controller.shared_data.get('nickname', "Utente")
         self.welcome_label.config(text=f"Benvenuto, {nickname}!")
+        self.update_waiting_games()
+    
+    def update_waiting_games(self):
+        games = send_to_server("/waiting_games", {})
+        print("Risposta server:", repr(games))  # <--- AGGIUNGI QUESTA RIGA
+        # Se la risposta è una stringa JSON, decodificala
+        if isinstance(games, str):
+            try:
+                games = json.loads(games)
+                games = games.get("partite", [])
+            except Exception as e:
+                print("Errore parsing JSON:", e)
+                games = []
+        for widget in self.games_container.winfo_children():
+            widget.destroy()
+        if not games:
+            ttk.Label(self.games_container, text="Nessuna partita in attesa", style="TLabel").pack(pady=(10, 0))
+            return 
+        for game in games:
+            self.add_waiting_game_widget(game)
+
+    def add_waiting_game_widget(self, game):
+        frame = ttk.Frame(self.games_container, style="Card.TFrame", relief="raised", borderwidth=1)
+        frame.pack(fill="x", padx=4, pady=2)
+        info = f"ID: {game['id_partita']} | Giocatore: {game['proprietario']} | ⏳ In attesa"
+        label = ttk.Label(frame, text=info, style="TLabel")
+        label.pack(side="left", padx=10, pady=5)
+        frame.bind("<Button-1>", lambda e, gid=game['id_partita']: self.join_game(gid))
+        label.bind("<Button-1>", lambda e, gid=game['id_partita']: self.join_game(gid))
 
     def new_game(self):
-        print("Creo nuova partita")
+        response = send_to_server("/new_game", {"nickname": self.controller.shared_data['nickname']})
+        print(response)
+        if response == "1":
+            self.welcome_label.config(text="Partita creata con successo", foreground="green")
+        else:
+            self.welcome_label.config(text="Errore nella creazione della partita", foreground="red")
+        
+    def join_game(self, game_id):
+        response = send_to_server("/join_game", {"game_id": game_id, "nickname": self.controller.shared_data['nickname']})
+        print(response)
+        if response == "1":
+            self.welcome_label.config(text="Partita unita con successo", foreground="green")
+        else:
+            self.welcome_label.config(text="Errore nell'unione alla partita", foreground="red")

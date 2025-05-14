@@ -34,9 +34,9 @@ class MainApp(tk.Tk):
         self.frames = {}
 
         # Inizializza le pagine
-        for Page in (LoginPage, HomePage):
-            page_name = Page.__name__
-            frame = Page(parent=self.container, controller=self)
+        for page in (LoginPage, HomePage):
+            page_name = page.__name__
+            frame = page(parent=self.container, controller=self)
             self.frames[page_name] = frame
             frame.grid(row=0, column=0, sticky="nsew")
 

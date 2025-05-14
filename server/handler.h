@@ -1,8 +1,7 @@
 #ifndef HANDLER_H
 #define HANDLER_H 
 
-#include "player.h"
-#include "game.h"
+
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/un.h>
@@ -15,18 +14,20 @@
 #include <cjson/cJSON.h> //installata libreria esterna
 
 #include <stdbool.h>
-
+#include "player.h"
+#include "game.h"
+#include "server.h"
 void crea_json(cJSON *root,int id,char*nome);
 
 bool partita_in_corso(GAME *partita);
 
-void handlerInviaGames(int *socket_nuovo,char*buffer);
+void handlerInviaGames(int *socket_nuovo);
 
-void handlerGames(int *leave_flag,int*socket_nuovo,char*buffer,GIOCATORE *giocatore);
+//void handlerGames(int *leave_flag,int*socket_nuovo,char*buffer,GIOCATORE *giocatore);
 
-void partecipa_partita_json(int *leave_flag,int*socket_nuovo,char*buffer,cJSON*body,GIOCATORE *giocatore);
+//void partecipa_partita_json(int *leave_flag,int*socket_nuovo,char*buffer,cJSON*body,GIOCATORE *giocatore);
 
-void handlerRiceviJsonMossa(int *leave_flag,char*buffer,GIOCATORE *giocatore,GAME*partita);
+//void handlerRiceviJsonMossa(int *leave_flag,char*buffer,GIOCATORE *giocatore,GAME*partita);
 
 
 #endif

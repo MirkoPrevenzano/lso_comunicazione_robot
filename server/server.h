@@ -7,13 +7,15 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <stdbool.h>
+#include <string.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <semaphore.h>
 #include <cjson/cJSON.h> //installata libreria esterna
-#include "./game.h"
-#include "./handler.h"
 #include "player.h"
+#include "game.h"
+#include "handler.h"
 
 #define PORT 8080
 #define BUFFER_SIZE 1024
@@ -26,16 +28,17 @@
 
 
 
-int static numero_connessioni=0;
-int static numero_partite=0;
-char *msg = "numero max di giocatori raggiunto.";
-char *msg1 = "errore";
-char *msg2 = "disconnesione";
-GIOCATORE* Giocatori[MAX_GIOCATORI];
-GAME* Partite[MAX_GAME];
-pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER; 
-pthread_mutex_t lock2 = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t lock3 = PTHREAD_MUTEX_INITIALIZER;
+// Dichiarazioni
+extern int numero_connessioni;
+extern int numero_partite;
+
+extern GAME* Partite[MAX_GAME];
+extern GIOCATORE* Giocatori[MAX_GIOCATORI];
+
+extern pthread_mutex_t lock;
+extern pthread_mutex_t playerListLock;
+extern pthread_mutex_t gameListLock;
+
 //opterei di fare un mutex per ogni grado di informazioni: esempio mutex_partita che blocca accessi simultanei al momento di aggiungere o rimuovere una partita
 //forse un mutex per ogni partita
 //un mutex per l'accesso alla lista dei giocatori 

@@ -1,39 +1,45 @@
 #include "./handler.h"
 
 void crea_json(cJSON *root,int id,char*nome){
-    cJSON_AddStringToObject(root,"path","/partecipa");
     cJSON_AddNumberToObject(root,"id_partita",id);
-    cJSON_AddStringToObject(root,"Proprietario",nome);
+    cJSON_AddStringToObject(root,"proprietario",nome);
 }
 
 bool partita_in_corso(GAME*partita){
     if(partita)
-        return (partita->giocatori[1]!=NULL);
+        return (partita->giocatoreParticipante[1]!=NULL);
     else
-        return 0;
+        return false;
 }
 
-void handlerInviaGames(int * socket_nuovo,char*buffer){
-    cJSON*root = cJSON_createObject();
+void handlerInviaGames(int * socket_nuovo){
+    cJSON*root = cJSON_CreateObject();
     cJSON *partite_array = cJSON_CreateArray();
     cJSON *partita = NULL;
+    Partite[0]->id=1;
+    strcpy(Partite[0]->giocatoreParticipante[0]->nome, "proprietario");
+    Partite[0]->giocatoreParticipante[1]=NULL; 
     for(int i=0;i<MAX_GAME;i++){
         if(Partite[i]!=NULL){
             if(!partita_in_corso(Partite[i])){
-            partita = cJSON_CreateObject();
-            crea_json(partita,Partite[i]->id,Partite[i]->giocatoreProprietario->nome); //che volevi chiamare? Passi 3 argomenti ad una funzione che ne richiede 2
-            cJSON_AddItemToArray(partite_array, partita);
-    }}}
+                partita = cJSON_CreateObject();
+                crea_json(partita,(int)Partite[i]->id,Partite[i]->giocatoreParticipante[0]->nome);
+                cJSON_AddItemToArray(partite_array, partita);
+            }
+        }
+    }
 
         cJSON_AddItemToObject(root, "partite", partite_array);
-        char*json_str=cJSON_PrintfUnformatted(root);
-        cJON_Delete(root);
+        char *json_str=cJSON_PrintUnformatted(root);
+        cJSON_Delete(root);
         send(*(socket_nuovo),json_str,strlen(json_str),0);
+        free(json_str); // libera la memoria allocata da cJSON_PrintUnformatted
+
 }
 
 //inviare con un send un messaggio di errore nei vari casi* TO-DO
 
-void handlerGames(int*leave_flag,int*socket_nuovo,char*buffer,GIOCATORE *giocatore){
+/*void handlerGames(int*leave_flag,int*socket_nuovo,char*buffer,GIOCATORE *giocatore){
     int size = read(*socket_nuovo, buffer, sizeof(buffer)-1);
     if(size > 0){
         buffer[size] = '\0';
@@ -50,9 +56,9 @@ void handlerGames(int*leave_flag,int*socket_nuovo,char*buffer,GIOCATORE *giocato
 
         if (path && path->valuestring) {
             if (strcmp(path->valuestring, "/crea_partita") == 0) {
-                //crea_game(leave_flag,buffer,giocatore);
+                crea_game(leave_flag,buffer,giocatore);
             }else if(strcmp(path->valuestring, "/partecipa_partita")){
-                partecipa_partita_json(leave_flag,socket_nuovo,buffer,body,giocatore);
+                //partecipa_partita_json(leave_flag,socket_nuovo,buffer,body,giocatore);
             }else {
                 printf("no path register: %s\n", path->valuestring);
                 *leave_flag = 1;
@@ -69,9 +75,9 @@ void handlerGames(int*leave_flag,int*socket_nuovo,char*buffer,GIOCATORE *giocato
 }
 
 }
+*/
 
-
-void partecipa_partita_json(int *leave_flag,int*socket_nuovo,char*buffer,cJSON*body,GIOCATORE *giocatore){
+/*void partecipa_partita_json(int *leave_flag,int*socket_nuovo,char*buffer,cJSON*body,GIOCATORE *giocatore){
     if (body && cJSON_IsString(body)) {
         cJSON *body_json = cJSON_Parse(body->valuestring);
         if (body_json) {
@@ -92,10 +98,10 @@ void partecipa_partita_json(int *leave_flag,int*socket_nuovo,char*buffer,cJSON*b
         printf("Il campo 'body' non è presente o non è un numero\n");
         *leave_flag = 1;
     }
-}
+}*/
 
 
-void handlerRiceviJsonMossa(int*leave_game,char*buffer,GIOCATORE *giocatore,GAME*partita){
+/*void handlerRiceviJsonMossa(int*leave_game,char*buffer,GIOCATORE *giocatore,GAME*partita){
     int size = read(*(giocatore->socket), buffer, sizeof(buffer)-1);
     if(size > 0){
         buffer[size] = '\0';
@@ -148,4 +154,4 @@ void handlerRiceviJsonMossa(int*leave_game,char*buffer,GIOCATORE *giocatore,GAME
 
     }
     }
-}    
+}  */  
