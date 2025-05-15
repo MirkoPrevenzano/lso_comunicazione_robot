@@ -25,8 +25,6 @@ class HomePage(tk.Frame):
         navbar.columnconfigure(0, weight=0)
         navbar.columnconfigure(1, weight=1)
 
-        back_button = ttk.Button(navbar, text="⬅", command=lambda: controller.show_frame("LoginPage"), style="Accent.TButton")
-        back_button.grid(row=0, column=0, padx=10, pady=4, sticky="w")
 
         navbar_label = ttk.Label(navbar, text="Tris", justify="center", style="Title.TLabel")
         navbar_label.grid(row=0, column=1, pady=(10, 5), sticky="n")
@@ -69,6 +67,10 @@ class HomePage(tk.Frame):
         self.welcome_label.config(text=f"Benvenuto, {nickname}!")
         self.update_waiting_games()
     
+   
+        
+        
+    
     def update_waiting_games(self):
         games = send_to_server("/waiting_games", {})
         print("Risposta server:", repr(games))  # <--- AGGIUNGI QUESTA RIGA
@@ -99,6 +101,7 @@ class HomePage(tk.Frame):
 
     def new_game(self):
         response = send_to_server("/new_game", {"nickname": self.controller.shared_data['nickname']})
+        self.update_waiting_games()
         print(response)
         if response == "1":
             self.welcome_label.config(text="Partita creata con successo", foreground="green")

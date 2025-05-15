@@ -1,6 +1,20 @@
 #include "game.h"
 #include "server.h"
-GAME*aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario){
+void aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario){
+    //controllo che non ci siano più di MAX_GAME partite
+    if(numero_partite>=MAX_GAME){
+        perror("numero max partite superato");
+        return;
+    }
+    //controllo che il giocatore non sia già in una partita
+    for(int i=0; i < MAX_GAME; ++i){
+        if(Partite[i]){
+            if(Partite[i]->giocatoreParticipante[0] && Partite[i]->giocatoreParticipante[0]->id == giocatoreProprietario->id){
+                perror("giocatore già in una partita");
+                return;
+            }
+        }
+    }
     pthread_mutex_lock(&gameListLock);
     for(int i=0; i < MAX_GAME; i++){
         if(!Partite[i]){
@@ -10,11 +24,13 @@ GAME*aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario){
             Partite[i]->turno=0;
             Partite[i]->esito=-1;
             break;
+            
         }
     }
     numero_partite++;
+    printf("Partita creata con id: %d\n",nuova_partita->id);
+    fflush(stdout);
     pthread_mutex_unlock(&gameListLock);
-    return nuova_partita;
 };
 void rimuovi_game_queue(GAME*partita){
     pthread_mutex_lock(&gameListLock);
@@ -33,26 +49,42 @@ void rimuovi_game_queue(GAME*partita){
     pthread_mutex_unlock(&gameListLock);
 }
 
-/*void crea_game(int*leave_flag,char*buffer,GIOCATORE*giocatore){
+void remove_game_by_player_id(int id) {
+    pthread_mutex_lock(&gameListLock);
+    for (int i = 0; i < MAX_GAME; ++i) {
+        if (Partite[i] && Partite[i]->giocatoreParticipante[0] && Partite[i]->giocatoreParticipante[0]->id == id) {
+            free(Partite[i]);
+            Partite[i] = NULL;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&gameListLock);
+}
+void new_game(int*leave_flag,char*buffer,GIOCATORE*giocatore){
     GAME *nuova_partita = (GAME *)malloc(sizeof(GAME));
     aggiungi_game_queue(nuova_partita,giocatore);
-
-    int leave_game=1;//pulsante per uscire
-    while(nuova_partita->giocatori[1]==NULL && (leave_game)){
+    const char *msg = "1";
+    if(nuova_partita==NULL)
+        msg = "0";
+    send(*(giocatore->socket), msg, strlen(msg), 0);
+    
+    
+    /*int leave_game=1;//pulsante per uscire
+    while(nuova_partita->giocatoreParticipante[1]==NULL && (leave_game)){
         //per ricevere il pulsante exit TO-DO
     }
     if(leave_game==0)
         rimuovi_game_queue(nuova_partita);
     else{
         StartGame(0,buffer,nuova_partita,giocatore);
-        while(nuova_partita->giocatori[1]!=NULL){}
+        while(nuova_partita->giocatoreParticipante[1]!=NULL){}
     }
     
-    rimuovi_game_queue(nuova_partita);
+    rimuovi_game_queue(nuova_partita);*/
     
 }
 
-void partecipa_game(int*leave_flag,int id_lobby,char*buffer,GIOCATORE *giocatore){
+/*void partecipa_game(int*leave_flag,int id_lobby,char*buffer,GIOCATORE *giocatore){
     pthread_mutex_lock(&gameListLock);
     GAME*gioco=SearchGiocoByID(id_lobby);
     

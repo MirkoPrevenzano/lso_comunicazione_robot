@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 from login_page import LoginPage
 from home_page import HomePage
+from client_network import send_to_server
 
 class MainApp(tk.Tk):
     def __init__(self):
@@ -42,12 +43,25 @@ class MainApp(tk.Tk):
 
         self.show_frame("LoginPage")
 
+
+        # gestione della chiusura della finestra
+        self.protocol("WM_DELETE_WINDOW", self.on_close)
+
+
     def show_frame(self, page_name):
         """Mostra una pagina specifica."""
         frame = self.frames[page_name]
         frame.tkraise()
         if hasattr(frame, "update_data"):
             frame.update_data()
+    
+    def on_close(self):
+        try:
+            send_to_server("/close", {})
+            self.destroy()
+        except Exception as e:
+            print(f"Errore durante la chiusura della connessione: {e}")
+        
 
 
 if __name__ == "__main__":

@@ -15,11 +15,12 @@ typedef struct game{
     sem_t semaforo; //cos'è?
 } GAME;
 
-//void crea_game(int*leave_flag,char*buffer,GIOCATORE*giocatore);
+void new_game(int*leave_flag,char*buffer,GIOCATORE*giocatore);
 
 //void partecipa_game(int*leave_flag,int id_lobby,char*buffer,GIOCATORE*giocatore);
 
-GAME*aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario);
+void aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario);
+void remove_game_by_player_id(int id);
 
 //GAME *searchPartitaById(int giocatore_id); //farei file player.h
 

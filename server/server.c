@@ -59,7 +59,6 @@ void queue_remove(int id){
 	for(int i=0; i < MAX_GIOCATORI; ++i){
 		if(Giocatori[i] && !trovato){
 			if(Giocatori[i]->id == id){
-                free(Giocatori[i]->socket);
                 Giocatori[i] = NULL;
                 trovato = true;
 			}
@@ -175,6 +174,16 @@ void *handle_client(void *arg) {
                 printf("Richiesta di giochi in attesa ricevuta\n");
                 handlerInviaGames(socket_nuovo);
             }
+            if(strcmp(path->valuestring, "/new_game") == 0) {
+                printf("Richiesta di creazione partita ricevuta\n");
+                new_game(&leave_flag,buffer,nuovo_giocatore);
+
+            }
+            if (strcmp(path->valuestring, "/close") == 0) {
+                printf("Richiesta di disconnessione\n");
+                remove_game_by_player_id(nuovo_giocatore->id);
+                leave_flag = 1;
+            }
             // ...altre richieste...
             cJSON_Delete(json);
         }
@@ -187,6 +196,7 @@ void *handle_client(void *arg) {
     free(socket_nuovo);
     queue_remove(nuovo_giocatore->id);
     free(nuovo_giocatore);
+    
     pthread_detach(pthread_self());
     return NULL;
 }
