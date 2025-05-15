@@ -52,4 +52,7 @@ void queue_remove(int id);
 
 void *handle_client(void *arg);
 
+void checkRouter(char* buffer, GIOCATORE*nuovo_giocatore, int *socket_nuovo, int *leave_flag);
+
+
 #endif

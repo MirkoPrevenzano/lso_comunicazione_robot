@@ -166,26 +166,8 @@ void *handle_client(void *arg) {
                 break;
             }
             buffer[size] = '\0';
-            cJSON *json = cJSON_Parse(buffer);
-            if (!json) continue;
-            cJSON *path = cJSON_GetObjectItem(json, "path");
-            cJSON *body = cJSON_GetObjectItem(json, "body");
-            if (strcmp(path->valuestring, "/waiting_games") == 0) {
-                printf("Richiesta di giochi in attesa ricevuta\n");
-                handlerInviaGames(socket_nuovo);
-            }
-            if(strcmp(path->valuestring, "/new_game") == 0) {
-                printf("Richiesta di creazione partita ricevuta\n");
-                new_game(&leave_flag,buffer,nuovo_giocatore);
-
-            }
-            if (strcmp(path->valuestring, "/close") == 0) {
-                printf("Richiesta di disconnessione\n");
-                remove_game_by_player_id(nuovo_giocatore->id);
-                leave_flag = 1;
-            }
-            // ...altre richieste...
-            cJSON_Delete(json);
+            checkRouter(buffer, nuovo_giocatore, socket_nuovo, &leave_flag);
+            
         }
     }
 
@@ -201,26 +183,35 @@ void *handle_client(void *arg) {
     return NULL;
 }
 
+void checkRouter(char* buffer, GIOCATORE*nuovo_giocatore, int *socket_nuovo, int *leave_flag){
+        
+    cJSON *json = cJSON_Parse(buffer);
+        if (!json) return;
+        cJSON *path = cJSON_GetObjectItem(json, "path");
+        cJSON *body = cJSON_GetObjectItem(json, "body");
+
+        
+        if (strcmp(path->valuestring, "/waiting_games") == 0) {
+            printf("Richiesta di giochi in attesa ricevuta\n");
+            handlerInviaGames(socket_nuovo);
+        }
+        if(strcmp(path->valuestring, "/new_game") == 0) {
+            printf("Richiesta di creazione partita ricevuta\n");
+            new_game(leave_flag,buffer,nuovo_giocatore);
+
+        }
+        if (strcmp(path->valuestring, "/close") == 0) {
+            printf("Richiesta di disconnessione\n");
+            remove_game_by_player_id(nuovo_giocatore->id);
+            *leave_flag = 1;
+        }
+        // ...altre richieste...
+        cJSON_Delete(json);
+}
+
 int main(){
   
-    // --- PARTITA DI TEST ---
-    GAME *test_game = malloc(sizeof(GAME));
-    memset(test_game, 0, sizeof(GAME));
-    test_game->id = 1;
-    test_game->turno = 0;
-    test_game->esito = -1;
-
-    GIOCATORE *proprietario = malloc(sizeof(GIOCATORE));
-    memset(proprietario, 0, sizeof(GIOCATORE));
-    strcpy(proprietario->nome, "proprietario_test");
-    proprietario->id = 0;
-    proprietario->socket = NULL;
-
-    // ATTENZIONE: usa il nome corretto del campo nella struct GAME!
-    test_game->giocatoreParticipante[0] = proprietario; // o test_game->giocatori[0]
-    test_game->giocatoreParticipante[1] = NULL;         // o test_game->giocatori[1]
-
-    Partite[0] = test_game;
+   
 
     int fd;
     struct sockaddr_in address;

@@ -3,6 +3,9 @@ from tkinter import ttk
 from login_page import LoginPage
 from home_page import HomePage
 from client_network import send_to_server
+from game_page import GamePage
+
+FONT_FAMILY = "Segoe UI"
 
 class MainApp(tk.Tk):
     def __init__(self):
@@ -19,11 +22,11 @@ class MainApp(tk.Tk):
         style = ttk.Style()
         style.theme_use("clam")  # Stile più moderno
         style.configure("TFrame", background="black")
-        style.configure("Title.TLabel", background="black", foreground="white", font=("Segoe UI", 18, "bold"))
-        style.configure("TLabel", background="black", foreground="white", font=("Segoe UI", 11))
-        style.configure("Status.TLabel", background="black", foreground="white", font=("Segoe UI", 10, "italic"))
+        style.configure("Title.TLabel", background="black", foreground="white", font=(FONT_FAMILY, 18, "bold"))
+        style.configure("TLabel", background="black", foreground="white", font=(FONT_FAMILY, 11))
+        style.configure("Status.TLabel", background="black", foreground="white", font=(FONT_FAMILY, 10, "italic"))
         style.configure("TEntry", fieldbackground="black", foreground="white", insertcolor="white")
-        style.configure("Accent.TButton", background="#2ecc71", foreground="white", font=("Segoe UI", 10, "bold"))
+        style.configure("Accent.TButton", background="#2ecc71", foreground="white", font=(FONT_FAMILY, 10, "bold"))
         style.map("Accent.TButton",
                   background=[("active", "#27ae60")],
                   foreground=[("active", "white")])
@@ -35,7 +38,7 @@ class MainApp(tk.Tk):
         self.frames = {}
 
         # Inizializza le pagine
-        for page in (LoginPage, HomePage):
+        for page in (LoginPage, HomePage, GamePage):
             page_name = page.__name__
             frame = page(parent=self.container, controller=self)
             self.frames[page_name] = frame

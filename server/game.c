@@ -1,11 +1,15 @@
 #include "game.h"
 #include "server.h"
 void aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario){
+
     //controllo che non ci siano più di MAX_GAME partite
+    pthread_mutex_lock(&gameListLock);
+
     if(numero_partite>=MAX_GAME){
         perror("numero max partite superato");
         return;
     }
+
     //controllo che il giocatore non sia già in una partita
     for(int i=0; i < MAX_GAME; ++i){
         if(Partite[i]){
@@ -15,8 +19,9 @@ void aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario){
             }
         }
     }
-    pthread_mutex_lock(&gameListLock);
-    for(int i=0; i < MAX_GAME; i++){
+
+    int i;
+    for( i=0; i < MAX_GAME; i++){
         if(!Partite[i]){
             Partite[i]=nuova_partita;
             Partite[i]->giocatoreParticipante[0] = giocatoreProprietario;
@@ -28,24 +33,27 @@ void aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario){
         }
     }
     numero_partite++;
-    printf("Partita creata con id: %d\n",nuova_partita->id);
+    printf("Partita creata con id: %d indice %d\n",nuova_partita->id, i);
     fflush(stdout);
     pthread_mutex_unlock(&gameListLock);
 };
+
+
 void rimuovi_game_queue(GAME*partita){
+
     pthread_mutex_lock(&gameListLock);
     if(partita!=NULL){
-    numero_partite--;
-    for(int i=0; i < MAX_GAME; ++i){
-		if(Partite[i]){
-			if(Partite[i] == partita){
-				Partite[i] = NULL;
-				break;
-			}
-		}
-	}
-    free(partita);
-}
+        numero_partite--;
+        for(int i=0; i < MAX_GAME; ++i){
+            if(Partite[i]){
+                if(Partite[i] == partita){
+                    Partite[i] = NULL;
+                    break;
+                }
+            }
+        }
+        free(partita);
+    }
     pthread_mutex_unlock(&gameListLock);
 }
 
@@ -60,14 +68,24 @@ void remove_game_by_player_id(int id) {
     }
     pthread_mutex_unlock(&gameListLock);
 }
+
+
 void new_game(int*leave_flag,char*buffer,GIOCATORE*giocatore){
     GAME *nuova_partita = (GAME *)malloc(sizeof(GAME));
     aggiungi_game_queue(nuova_partita,giocatore);
     const char *msg = "1";
-    if(nuova_partita==NULL)
-        msg = "0";
-    send(*(giocatore->socket), msg, strlen(msg), 0);
-    
+    if(!nuova_partita){
+        sendSuccessNewGame(0,giocatore, -1);
+        return;
+    }
+    else{
+        sendSuccessNewGame(1,giocatore, nuova_partita->id);
+        printf("Partita creata con id: %d\n",nuova_partita->id);
+        fflush(stdout);
+        //printf("Giocatore %s ha creato una partita\n",giocatore->nome);
+        
+    }
+        
     
     /*int leave_game=1;//pulsante per uscire
     while(nuova_partita->giocatoreParticipante[1]==NULL && (leave_game)){
@@ -82,6 +100,16 @@ void new_game(int*leave_flag,char*buffer,GIOCATORE*giocatore){
     
     rimuovi_game_queue(nuova_partita);*/
     
+}
+
+void sendSuccessNewGame(int success, GIOCATORE*giocatore, int id_partita){
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddNumberToObject(root, "success", 1);
+    cJSON_AddNumberToObject(root, "id_partita", id_partita);
+    char *msg = cJSON_PrintUnformatted(root);
+    send(*(giocatore->socket), msg, strlen(msg), 0);
+    cJSON_Delete(root);
+    free(msg);
 }
 
 /*void partecipa_game(int*leave_flag,int id_lobby,char*buffer,GIOCATORE *giocatore){

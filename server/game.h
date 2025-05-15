@@ -21,6 +21,7 @@ void new_game(int*leave_flag,char*buffer,GIOCATORE*giocatore);
 
 void aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario);
 void remove_game_by_player_id(int id);
+void sendSuccessNewGame(int success, GIOCATORE*giocatore, int id_partita);
 
 //GAME *searchPartitaById(int giocatore_id); //farei file player.h
 

@@ -103,10 +103,19 @@ class HomePage(tk.Frame):
         response = send_to_server("/new_game", {"nickname": self.controller.shared_data['nickname']})
         self.update_waiting_games()
         print(response)
-        if response == "1":
-            self.welcome_label.config(text="Partita creata con successo", foreground="green")
-        else:
-            self.welcome_label.config(text="Errore nella creazione della partita", foreground="red")
+        try:
+            data = json.loads(response)
+            if data.get("success") == 1:
+                game_id = data.get("id_game")
+                self.controller.shared_data['game_id'] = game_id
+                self.controller.show_frame("GamePage")
+            else:
+                self.welcome_label.config(text="Errore nella creazione della partita", foreground="red")
+        except json.JSONDecodeError:
+            self.welcome_label.config(text="Errore nella risposta del server", foreground="red")
+        except Exception as e:
+            self.welcome_label.config(text=f"Errore: {str(e)}", foreground="red")
+            print(f"Errore: {str(e)}")
         
     def join_game(self, game_id):
         response = send_to_server("/join_game", {"game_id": game_id, "nickname": self.controller.shared_data['nickname']})

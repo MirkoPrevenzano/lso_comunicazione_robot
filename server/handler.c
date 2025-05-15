@@ -15,10 +15,7 @@ bool partita_in_corso(GAME*partita){
 void handlerInviaGames(int * socket_nuovo){
     cJSON*root = cJSON_CreateObject();
     cJSON *partite_array = cJSON_CreateArray();
-    cJSON *partita = NULL;
-    Partite[0]->id=1;
-    strcpy(Partite[0]->giocatoreParticipante[0]->nome, "proprietario");
-    Partite[0]->giocatoreParticipante[1]=NULL; 
+    cJSON *partita = NULL; 
     for(int i=0;i<MAX_GAME;i++){
         if(Partite[i]!=NULL){
             if(!partita_in_corso(Partite[i])){
