@@ -1,5 +1,10 @@
+import json
 import tkinter as tk
 from tkinter import ttk
+
+from lso_comunicazione_robot.frontend.client_network import receive_from_server, send_to_server
+
+
 
 class GamePage(tk.Frame):
     def __init__(self, parent, controller):
@@ -7,11 +12,14 @@ class GamePage(tk.Frame):
         self.controller = controller
         self.configure(bg="black")
 
+        # id della partita
         self.id = None
         self.nomePartecipante = ""
         self.TRIS = [[0 for _ in range(3)] for _ in range(3)]
         self.esito = None
         self.turno = None
+        self.simbolo_assegnato = None
+        
 
         # Layout
         self.rowconfigure(0, weight=0)  # Navbar
@@ -35,7 +43,11 @@ class GamePage(tk.Frame):
         # Turno
         self.turn_label = ttk.Label(self, text="Turno:", style="TLabel", justify="center")
         self.turn_label.grid(row=2, column=0, pady=5)
+        # Label Simbolo Assegnato (in basso a destra)
+        self.simbolo_label = ttk.Label(self, text="Simbolo Assegnato: ", style="TLabel", justify="right")
+        self.simbolo_label.place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-10)
 
+        
         # Griglia di gioco
         grid_frame = ttk.Frame(self, style="TFrame")
         grid_frame.grid(row=3, column=0, pady=20)
@@ -57,24 +69,109 @@ class GamePage(tk.Frame):
 
         # Stato del gioco
         self.current_turn = None
+        self.after(500, self.ascolta_server)
+
+
+    def ascolta_server(self):
+        risposta = receive_from_server()
+        if risposta:
+            try:
+                data = json.loads(risposta)
+                if data.get("type") == "start_game":
+                    self.simbolo_assegnato = data.get("simbolo", "")
+                    self.nomePartecipante = data.get("nickname_partecipante", "")
+                    self.id = data.get("game_id", "")
+                    self._assegna_simbolo()
+                    self.aggiorna_dati(data.get("game_data", {}))
+
+                elif data.get("type") == "update_game":
+                    self.aggiorna_dati(data.get("game_data", {}))
+                    self.gestisci_turno(data.get("turno", 0))
+                elif data.get("type") == "left_player":
+                    tk.messagebox.showinfo("Info", "L'avverario ha lasciato la partita.")
+                    self.controller.show_frame("HomePage")
+
+            except json.JSONDecodeError:
+                print("Errore nella decodifica della risposta JSON.")
+            except Exception as e:
+                print(f"Errore durante l'elaborazione della risposta: {e}")
+        self.after(500, self.ascolta_server)
+
+
 
     def handle_click(self, row, col):
-        # Ignora se la cella è già stata cliccata
-        print(f"Clicked on cell ({row}, {col})")
+        self.send_move_to_server(row, col , self.controller.shared_data['nickname'], self.id)
+
+    def send_move_to_server(self,row, col, nickname, game_id):
+        """Invia la mossa al server."""
+        path = "/game/move"
+        messaggio = {  
+            "row": row,
+            "col": col,
+            "nickname": nickname,
+            "game_id": game_id  
+        }
+        risposta = send_to_server(path,messaggio)
+        if risposta:
+           try: 
+                data = json.loads(risposta)
+                if data.get("success") == 1:
+                    self.aggiorna_dati(data.get("game_data", {}))
+                else:
+                   errore = data.get("error", "Errore sconosciuto")
+                   tk.messagebox.showerror("Errore", errore)
+           except json.JSONDecodeError:
+               print("Errore nella decodifica della risposta JSON.")
+        else:
+            print("Errore nell'invio della mossa al server.")
 
     def aggiorna_dati(self, dati_game):
         """Aggiorna gli attributi e la UI con i dati ricevuti dal server."""
-        self.id = dati_game.get("id")
-        self.nomePartecipante = dati_game.get("nomePartecipante", "")
         self.TRIS = dati_game.get("TRIS", [[0]*3 for _ in range(3)])
         self.esito = dati_game.get("esito")
         self.turno = dati_game.get("turno")
+        if self._gestisci_esito():
+            return
+        self._aggiorna_labels()
+        self._aggiorna_griglia()
 
-        # Aggiorna le label
+    def _gestisci_esito(self):
+        """Gestisce la visualizzazione dell'esito della partita."""
+        if self.esito != 0:
+            esito_text = "Partita terminata: "
+            if self.esito == 1:
+                esito_text += "Vittoria!"
+            elif self.esito == 2:
+                esito_text += "Sconfitta!"
+            else:
+                esito_text += "Pareggio!"
+            tk.messagebox.showinfo("Esito partita", esito_text)
+            return True
+        return False
+
+    def _aggiorna_labels(self):
+        """Aggiorna le label dei partecipanti e del turno."""
         self.players_label.config(text=f"Partecipante: {self.nomePartecipante}")
-        self.turn_label.config(text=f"Turno: {self.turno}")
+        if self.turno == 1:
+            simbolo = "✗"
+        elif self.turno == 2:
+            simbolo = "◯"
+        else:
+            simbolo = str(self.turno)
+        self.turn_label.config(text=f"Turno: {simbolo}")
+    
+    def _assegna_simbolo(self):
+        if self.simbolo_assegnato == 1:
+            simbolo = "✗"
+        elif self.simbolo_assegnato == 2:
+            simbolo = "◯"
+        else:
+            simbolo = str(self.turno)
+        self.simbolo_label.config(text=f"Simbolo Assegnato: {simbolo}")
 
-        # Aggiorna la griglia
+
+    def _aggiorna_griglia(self):
+        """Aggiorna la griglia di gioco."""
         for i in range(3):
             for j in range(3):
                 value = self.TRIS[i][j]

@@ -83,7 +83,8 @@ void new_game(int*leave_flag,char*buffer,GIOCATORE*giocatore){
         printf("Partita creata con id: %d\n",nuova_partita->id);
         fflush(stdout);
         //printf("Giocatore %s ha creato una partita\n",giocatore->nome);
-        
+        //entro in partita in attesa di un altro giocatore
+       
     }
         
     

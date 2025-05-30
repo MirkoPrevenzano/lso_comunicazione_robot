@@ -17,4 +17,17 @@ def send_to_server(path, body):
     risposta = s.recv(4096).decode()
     return risposta
 
-
+def receive_from_server():
+    s.setblocking(False)  # Imposta il socket in modalità non bloccante
+    try:
+        data = s.recv(4096).decode()
+        if not data:
+            return None
+        return data
+    except BlockingIOError:
+        return None
+    except Exception as e:
+        print(f"Errore durante la ricezione dei dati: {e}")
+        return None
+    finally: s.setblocking(True)  # Ripristina la modalità bloccante
+        
