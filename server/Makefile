@@ -10,7 +10,7 @@ TARGET = server
 
 # Regola principale per compilare l'eseguibile
 $(TARGET): $(OBJECTS)
-	$(CC) $(CFLAGS) $(OBJECTS) -o $(TARGET)
+	$(CC) $(CFLAGS) $(OBJECTS) -o $(TARGET) -lcjson
 
 # Regola per compilare il file server.o
 server.o: server.c
