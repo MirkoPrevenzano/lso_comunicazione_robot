@@ -15,6 +15,7 @@ void aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario){
         if(Partite[i]){
             if(Partite[i]->giocatoreParticipante[0] && Partite[i]->giocatoreParticipante[0]->id == giocatoreProprietario->id){
                 perror("giocatore già in una partita");
+                pthread_mutex_unlock(&gameListLock);
                 return;
             }
         }
@@ -82,26 +83,64 @@ void new_game(int*leave_flag,char*buffer,GIOCATORE*giocatore){
         sendSuccessNewGame(1,giocatore, nuova_partita->id);
         printf("Partita creata con id: %d\n",nuova_partita->id);
         fflush(stdout);
-        //printf("Giocatore %s ha creato una partita\n",giocatore->nome);
-        //entro in partita in attesa di un altro giocatore
-       
-    }
+        printf("Giocatore %s ha creato una partita\n",giocatore->nome);
+        GameStartPlayer1(leave_flag,buffer,nuova_partita);
         
-    
-    /*int leave_game=1;//pulsante per uscire
-    while(nuova_partita->giocatoreParticipante[1]==NULL && (leave_game)){
-        //per ricevere il pulsante exit TO-DO
     }
-    if(leave_game==0)
-        rimuovi_game_queue(nuova_partita);
-    else{
-        StartGame(0,buffer,nuova_partita,giocatore);
-        while(nuova_partita->giocatoreParticipante[1]!=NULL){}
-    }
-    
-    rimuovi_game_queue(nuova_partita);*/
+   
     
 }
+
+ 
+void GameStartPlayer1(int*leave_flag,char*buffer,GAME*nuova_partita){
+    int ricevuto=0;
+    //se ricevo il numero 1 vuol dire che è stato premuto il pulsante esci
+    //recv_with_timeout usa la funzione select per fare un timeout di 10 secondi
+    while((!leave_flag) && (nuova_partita->giocatoreParticipante[1]==NULL)){
+        ricevuto = recv_with_timeout(*(nuova_partita->giocatoreParticipante[0]->socket),buffer,sizeof(buffer),10);
+        if(ricevuto==1){
+            *leave_flag=1;
+        }
+    }
+    if(*leave_flag==1){
+            rimuovi_game_queue(nuova_partita);
+            return ;
+        }
+    
+
+    GamePlayer1(leave_flag,buffer,nuova_partita,nuova_partita->giocatoreParticipante[1]);
+    
+    //TO-DO il cambio di properitario
+    rimuovi_game_queue(nuova_partita);
+    
+}
+
+int recv_with_timeout(int sockfd, void* buf, size_t len, int timeout_sec) {
+    fd_set readfds;
+    struct timeval timeout;
+
+    FD_ZERO(&readfds);
+    FD_SET(sockfd, &readfds);
+
+    timeout.tv_sec = timeout_sec;
+    timeout.tv_usec = 0;
+
+    int ret = select(sockfd + 1, &readfds, NULL, NULL, &timeout);
+    if (ret < 0) {
+        perror("select");
+        return -1; // errore
+    } else if (ret == 0) {
+        // Timeout scaduto
+        printf("Timeout: nessun dato ricevuto entro %d secondi\n", timeout_sec);
+        return 0;
+    }
+
+    // Socket pronto per la lettura
+    return recv(sockfd, buf, len, 0);
+}
+
+
+
 
 void sendSuccessNewGame(int success, GIOCATORE*giocatore, int id_partita){
     cJSON *root = cJSON_CreateObject();
@@ -112,6 +151,34 @@ void sendSuccessNewGame(int success, GIOCATORE*giocatore, int id_partita){
     cJSON_Delete(root);
     free(msg);
 }
+
+void GamePlayer1(int *leave_flag,char*buffer,GAME*nuova_partita,GIOCATORE*Giocatore1){
+        while((!leave_flag) && !(nuova_partita->esito>0)){
+            if(nuova_partita->turno!=0){
+                   sem_wait(&(nuova_partita->semaforo));   
+            }
+            
+            //TO-DO gioco 
+
+            nuova_partita->turno=1;//cambio turno
+            sem_post(&(nuova_partita->semaforo)); 
+        }
+}
+
+void GamePlayer2(int *leave_flag,char*buffer,GAME*nuova_partita,GIOCATORE*Giocatore2){
+        while((!leave_flag) && !(nuova_partita->esito>0)){
+            if(nuova_partita->turno!=1){
+                   sem_wait(&(nuova_partita->semaforo));   
+            }
+            
+            //TO-DO gioco 
+
+            nuova_partita->turno=0;//cambio turno
+            sem_post(&(nuova_partita->semaforo)); 
+        }
+}
+
+
 
 /*void partecipa_game(int*leave_flag,int id_lobby,char*buffer,GIOCATORE *giocatore){
     pthread_mutex_lock(&gameListLock);
@@ -175,49 +242,7 @@ bool controlla_pareggio(GAME*partita,int esito){
     return 1;
 
 }
-//giocatore 1 avra turno 0 -> il suo simbolo è il numero 1, esito=1 vittoria giocatore 1
-//giocatore 2 avrà turno 1 -> il suo simbolo è il numero 2, esito=2 vittoria giocatore 2
-void StartGame(int turno,char*buffer,GAME*partita,GIOCATORE* giocatore){
-        int leave_game=1;
-        int esito=0;
-        while(partita_in_corso(partita)&&(leave_game)){
-            sem_wait(&(partita->semaforo));
-            inviaJsonMatrice(partita,giocatore); //passavi anche buffer perchè?
-            if(partita->turno==turno){
-                riceviJsonMossa(&leave_game,partita,giocatore);
-                if(leave_game==0){
-                    if(partita->esito==-1)
-                        //errore  TO-DO
-                    sem_post(&(partita->semaforo));
-                    break;
-                }
-                if(controlla_vittoria(partita,turno+1,&esito)||controllo_pareggio(partita,esito)){
-                    inviaEsitoPartita(esito,partita);
-                    switchTurno(partita);
-                    partita->esito=esito;
-                    leave_game=0;
-                    sem_post(&(partita->semaforo));
-                }else
-                    switchTurno(partita);
-            }else
-                sem_post(&(partita->semaforo));
-            sem_post(&(partita->semaforo));
-        }
-        //TO-DO se partita non è più in corso in caso di errore
-        //esempio:disconnessione dalla rete
-        //potrebbe esserci un deadlock
-}
 
-void switchTurno(GAME*partita){
-    switch(partita->turno){
-        case 0:
-        partita->turno=1;
-        break;
-        case 1:
-        partita->turno=0;
-        break;
-    }
-}
 
 void inviaJsonMatrice(GAME*partita, GIOCATORE*giocatore){
     cJSON*root = cJSON_createObject();
@@ -267,4 +292,6 @@ void ModificaArrayTris(int i,int j,int giocatore,GAME*partita){
     partita->TRIS[i][j]=giocatore;
 }*/
 
-
+//esito -1 -> errore partita ; metere un timeout per evitare deadlock
+//esito 0 = parità -> numero di default quindi nessun vincitore
+//esito 1 o 2 -> giocatore vincente
