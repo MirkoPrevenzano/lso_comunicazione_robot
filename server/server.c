@@ -194,7 +194,9 @@ void checkRouter(char* buffer, GIOCATORE*nuovo_giocatore, int *socket_nuovo, int
         if (strcmp(path->valuestring, "/waiting_games") == 0) {
             printf("Richiesta di giochi in attesa ricevuta\n");
             handlerInviaGames(socket_nuovo);
-            //TO-DO
+            //il server rimane in attesa per la scelta della lobby oppure eventuale uscita
+            joinLobby(leave_flag,buffer,nuovo_giocatore);
+
         }
         if(strcmp(path->valuestring, "/new_game") == 0) {
             printf("Richiesta di creazione partita ricevuta\n");

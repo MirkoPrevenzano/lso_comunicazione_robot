@@ -7,6 +7,7 @@
 #include <sys/select.h>
 #include <errno.h>
 #include <semaphore.h>
+#include <cjson/cJSON.h> //installata libreria esterna
 
 typedef struct game{
     int id;
@@ -19,13 +20,13 @@ typedef struct game{
 
 void new_game(int*leave_flag,char*buffer,GIOCATORE*giocatore);
 
-//void partecipa_game(int*leave_flag,int id_lobby,char*buffer,GIOCATORE*giocatore);
-
 void GameStartPlayer1(int*leave_flag,char*buffer,GAME*nuova_partita);
-void GamePlayer1(int *leave_flag,char*buffer,GAME*nuova_partita,GIOCATORE*Giocatore1);
-void GamePlayer2(int *leave_flag,char*buffer,GAME*nuova_partita,GIOCATORE*Giocatore2);
+void GameStartPlayer2(int*leave_flag,char*buffer,GAME*nuova_partita,GIOCATORE*Giocatore2);
+void GamePlayer1(int *leave_flag,int*leave_game,char*buffer,GAME*nuova_partita,GIOCATORE*Giocatore1);
+void GamePlayer2(int *leave_flag,int*leave_game,char*buffer,GAME*nuova_partita,GIOCATORE*Giocatore2);
 
-int recv_with_timeout(int sockfd, void* buf, size_t len, int timeout_sec);
+cJSON* read_with_timeout(int sockfd, char* buffer, size_t len, int timeout_sec,int*leave_game);
+void gestioneRichiestaJSONuscita(cJSON* json,int*leave_flag,int*leave_game);
 void aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario);
 void remove_game_by_player_id(int id);
 void sendSuccessNewGame(int success, GIOCATORE*giocatore, int id_partita);
