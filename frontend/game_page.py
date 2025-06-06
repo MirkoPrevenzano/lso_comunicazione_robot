@@ -1,10 +1,8 @@
 import json
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 
-from lso_comunicazione_robot.frontend.client_network import receive_from_server, send_to_server
-
-
+from client_network import receive_from_server, send_to_server
 
 class GamePage(tk.Frame):
     def __init__(self, parent, controller):
@@ -20,7 +18,6 @@ class GamePage(tk.Frame):
         self.turno = None
         self.simbolo_assegnato = None
         
-
         # Layout
         self.rowconfigure(0, weight=0)  # Navbar
         self.rowconfigure(1, weight=0)  # Info giocatori
@@ -47,12 +44,11 @@ class GamePage(tk.Frame):
         self.simbolo_label = ttk.Label(self, text="Simbolo Assegnato: ", style="TLabel", justify="right")
         self.simbolo_label.place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-10)
 
-        
         # Griglia di gioco
         grid_frame = ttk.Frame(self, style="TFrame")
         grid_frame.grid(row=3, column=0, pady=20)
 
-        self.buttons = []
+        self.buttons = [[None for _ in range(3)] for _ in range(3)]
         for i in range(3):
             grid_frame.rowconfigure(i, weight=1)
             for j in range(3):
@@ -65,41 +61,42 @@ class GamePage(tk.Frame):
                     width=6
                 )
                 btn.grid(row=i, column=j, padx=5, pady=5, ipadx=10, ipady=10, sticky="nsew")
-                self.buttons.append(btn)
+                self.buttons[i][j] = btn
 
         # Stato del gioco
         self.current_turn = None
         self.after(500, self.ascolta_server)
 
+    def update_data(self):
+        self.simbolo_assegnato = self.controller.shared_data.get("simbolo_assegnato", "")
+        self.nomePartecipante = self.controller.shared_data.get("nomePartecipante", "")
+        self.id = self.controller.shared_data.get("game_id", "")
+        self._assegna_simbolo()
+        self.aggiorna_dati(self.controller.shared_data.get("game_data", {}))
 
     def ascolta_server(self):
         risposta = receive_from_server()
         if risposta:
             try:
                 data = json.loads(risposta)
-                if data.get("type") == "start_game":
-                    self.simbolo_assegnato = data.get("simbolo", "")
-                    self.nomePartecipante = data.get("nickname_partecipante", "")
-                    self.id = data.get("game_id", "")
-                    self._assegna_simbolo()
-                    self.aggiorna_dati(data.get("game_data", {}))
-
-                elif data.get("type") == "update_game":
+                if data.get("type") == "update_game" or data.get("type") == "start_game":
                     self.aggiorna_dati(data.get("game_data", {}))
                     self.gestisci_turno(data.get("turno", 0))
                 elif data.get("type") == "left_player":
-                    tk.messagebox.showinfo("Info", "L'avverario ha lasciato la partita.")
+                    messagebox.showinfo("Info", "L'avverario ha lasciato la partita.")
                     self.controller.show_frame("HomePage")
-
+                elif data.get("type") == "error":
+                    messagebox.showerror("Errore", data.get("error", "Errore sconosciuto"))
+                    self.controller.show_frame("HomePage")
             except json.JSONDecodeError:
                 print("Errore nella decodifica della risposta JSON.")
             except Exception as e:
                 print(f"Errore durante l'elaborazione della risposta: {e}")
         self.after(500, self.ascolta_server)
 
-
-
     def handle_click(self, row, col):
+        if self.TRIS[row][col] != 0 or not self._is_my_turn():
+            return
         self.send_move_to_server(row, col , self.controller.shared_data['nickname'], self.id)
 
     def send_move_to_server(self,row, col, nickname, game_id):
@@ -119,7 +116,7 @@ class GamePage(tk.Frame):
                     self.aggiorna_dati(data.get("game_data", {}))
                 else:
                    errore = data.get("error", "Errore sconosciuto")
-                   tk.messagebox.showerror("Errore", errore)
+                   messagebox.showerror("Errore", errore)
            except json.JSONDecodeError:
                print("Errore nella decodifica della risposta JSON.")
         else:
@@ -134,10 +131,11 @@ class GamePage(tk.Frame):
             return
         self._aggiorna_labels()
         self._aggiorna_griglia()
+        self._abilita_griglia()
 
     def _gestisci_esito(self):
         """Gestisce la visualizzazione dell'esito della partita."""
-        if self.esito != 0:
+        if self.esito is not None and self.esito != 0:
             esito_text = "Partita terminata: "
             if self.esito == 1:
                 esito_text += "Vittoria!"
@@ -145,7 +143,8 @@ class GamePage(tk.Frame):
                 esito_text += "Sconfitta!"
             else:
                 esito_text += "Pareggio!"
-            tk.messagebox.showinfo("Esito partita", esito_text)
+            messagebox.showinfo("Esito partita", esito_text)
+            self.controller.show_frame("HomePage")
             return True
         return False
 
@@ -169,7 +168,6 @@ class GamePage(tk.Frame):
             simbolo = str(self.turno)
         self.simbolo_label.config(text=f"Simbolo Assegnato: {simbolo}")
 
-
     def _aggiorna_griglia(self):
         """Aggiorna la griglia di gioco."""
         for i in range(3):
@@ -184,3 +182,22 @@ class GamePage(tk.Frame):
                 else:
                     text = str(value)
                 self.buttons[i][j].config(text=text)
+
+    def _abilita_griglia(self):
+        """Abilita o disabilita i bottoni della griglia in base al turno e stato partita."""
+        my_turn = self._is_my_turn()
+        partita_attiva = self.esito is None or self.esito == 0
+        for i in range(3):
+            for j in range(3):
+                if self.TRIS[i][j] == 0 and my_turn and partita_attiva:
+                    self.buttons[i][j].state(["!disabled"])
+                else:
+                    self.buttons[i][j].state(["disabled"])
+
+    def _is_my_turn(self):
+        return self.simbolo_assegnato == self.turno and (self.esito is None or self.esito == 0)
+
+    def gestisci_turno(self, turno):
+        self.turno = turno
+        self._aggiorna_labels()
+        self._abilita_griglia()

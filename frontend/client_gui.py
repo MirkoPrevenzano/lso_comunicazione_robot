@@ -4,6 +4,7 @@ from login_page import LoginPage
 from home_page import HomePage
 from client_network import send_to_server
 from game_page import GamePage
+from attend_page import AttendPage
 
 FONT_FAMILY = "Segoe UI"
 
@@ -38,7 +39,7 @@ class MainApp(tk.Tk):
         self.frames = {}
 
         # Inizializza le pagine
-        for page in (LoginPage, HomePage, GamePage):
+        for page in (LoginPage, HomePage, GamePage, AttendPage):
             page_name = page.__name__
             frame = page(parent=self.container, controller=self)
             self.frames[page_name] = frame

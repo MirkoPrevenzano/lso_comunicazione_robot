@@ -28,7 +28,7 @@ void aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario){
             Partite[i]->giocatoreParticipante[0] = giocatoreProprietario;
             Partite[i]->id=numero_partite;
             Partite[i]->turno=0;
-            Partite[i]->esito=-1;
+            Partite[i]->esito=0;
             break;
             
         }
@@ -53,6 +53,7 @@ void rimuovi_game_queue(GAME*partita){
                 }
             }
         }
+        printf("Partita con id: %d rimossa\n", partita->id);
         free(partita);
     }
     pthread_mutex_unlock(&gameListLock);
@@ -74,7 +75,7 @@ void remove_game_by_player_id(int id) {
 void new_game(int*leave_flag,char*buffer,GIOCATORE*giocatore){
     GAME *nuova_partita = (GAME *)malloc(sizeof(GAME));
     aggiungi_game_queue(nuova_partita,giocatore);
-    const char *msg = "1";
+    //const char *msg = "1";
     if(!nuova_partita){
         sendSuccessNewGame(0,giocatore, -1);
         return;
@@ -91,6 +92,7 @@ void new_game(int*leave_flag,char*buffer,GIOCATORE*giocatore){
     
 }
 
+<<<<<<< HEAD
 void gestioneRichiestaJSONuscita(cJSON*json,int*leave_flag,int*leave_game){
     if(json==NULL)
         return;
@@ -102,6 +104,18 @@ void gestioneRichiestaJSONuscita(cJSON*json,int*leave_flag,int*leave_game){
     }else{
         if (strcmp(path->valuestring, "/close") == 0) {
             printf("Richiesta uscita attesa ricevuta\n");
+=======
+ 
+void GameStartPlayer1(int*leave_flag,char*buffer,GAME*nuova_partita){
+    int ricevuto=0;
+    int leave_game=0;
+    //se ricevo il numero 1 vuol dire che è stato premuto il pulsante esci
+    //recv_with_timeout usa la funzione select per fare un timeout di 10 secondi
+    while(!(*leave_flag) && !leave_game && (nuova_partita->giocatoreParticipante[1]==NULL)){
+        ricevuto = recv_with_timeout(*(nuova_partita->giocatoreParticipante[0]->socket),buffer,sizeof(buffer),10);
+        //gestioneRichiesta(path, leave_flag, leave_game);
+        if(ricevuto>0){
+>>>>>>> 0fb46b1 (Inserimento paggina attesa, gestione richiesta di abbandono partita senza chiudere l'app)
             *leave_flag=1;
 
         }
@@ -127,11 +141,22 @@ void GameStartPlayer1(int*leave_flag,char*buffer,GAME*nuova_partita){
     if(*leave_flag==1 || leave_game==1){
             rimuovi_game_queue(nuova_partita);
             return ;
-        }
+    }
+    if(leave_game==1){
+        printf("Giocatore %s ha lasciato la partita\n",nuova_partita->giocatoreParticipante[0]->nome);
+        rimuovi_game_queue(nuova_partita);
+        return;
+    }
+    
     
 
+<<<<<<< HEAD
     GamePlayer1(leave_flag,&leave_game,buffer,nuova_partita,nuova_partita->giocatoreParticipante[0]);
     
+=======
+    GamePlayer1(leave_flag,buffer,nuova_partita,nuova_partita->giocatoreParticipante[0]);
+    printf("Partita con id: %d terminata\n",nuova_partita->id);
+>>>>>>> 0fb46b1 (Inserimento paggina attesa, gestione richiesta di abbandono partita senza chiudere l'app)
     //TO-DO il cambio di properitario
     rimuovi_game_queue(nuova_partita);
     
@@ -207,8 +232,14 @@ void sendSuccessNewGame(int success, GIOCATORE*giocatore, int id_partita){
     free(msg);
 }
 
+<<<<<<< HEAD
 void GamePlayer1(int *leave_flag,int*leave_game,char*buffer,GAME*nuova_partita,GIOCATORE*Giocatore1){
         while((!*leave_flag)&&(!*leave_game)&& (nuova_partita->esito==0)){
+=======
+void GamePlayer1(int *leave_flag,char*buffer,GAME*nuova_partita,GIOCATORE*Giocatore1){
+      
+        while(!(*leave_flag) && nuova_partita->esito==0){
+>>>>>>> 0fb46b1 (Inserimento paggina attesa, gestione richiesta di abbandono partita senza chiudere l'app)
             if(nuova_partita->turno!=0){
                    sem_wait(&(nuova_partita->semaforo));   
             }

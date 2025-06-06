@@ -62,26 +62,42 @@ class HomePage(tk.Frame):
 
 
 
+    def periodic_update_waiting_games(self):
+        # Salva l'id del timer per poterlo cancellare quando si cambia frame
+        self._waiting_games_after_id = self.after(2000, self.periodic_update_waiting_games)
+        self.update_waiting_games()
+
+    def stop_periodic_update_waiting_games(self):
+        # Ferma il timer se attivo
+        if hasattr(self, '_waiting_games_after_id'):
+            self.after_cancel(self._waiting_games_after_id)
+            del self._waiting_games_after_id
+
     def update_data(self):
         nickname = self.controller.shared_data.get('nickname', "Utente")
         self.welcome_label.config(text=f"Benvenuto, {nickname}!")
         self.update_waiting_games()
+        self.periodic_update_waiting_games()
+
     
    
         
         
     
     def update_waiting_games(self):
-        games = send_to_server("/waiting_games", {})
-        print("Risposta server:", repr(games))  # <--- AGGIUNGI QUESTA RIGA
-        # Se la risposta è una stringa JSON, decodificala
-        if isinstance(games, str):
+        try:
+            games = send_to_server("/waiting_games", {})
+            print("Risposta server:", repr(games))
             try:
                 games = json.loads(games)
                 games = games.get("partite", [])
             except Exception as e:
                 print("Errore parsing JSON:", e)
                 games = []
+        except Exception as e:
+            print("Errore di connessione o BrokenPipe:", e)
+            games = []
+
         for widget in self.games_container.winfo_children():
             widget.destroy()
         if not games:
@@ -101,14 +117,15 @@ class HomePage(tk.Frame):
 
     def new_game(self):
         response = send_to_server("/new_game", {"nickname": self.controller.shared_data['nickname']})
-        self.update_waiting_games()
+        #self.update_waiting_games()
         print(response)
         try:
             data = json.loads(response)
             if data.get("success") == 1:
                 game_id = data.get("id_game")
                 self.controller.shared_data['game_id'] = game_id
-                self.controller.show_frame("GamePage")
+                self.stop_periodic_update_waiting_games()
+                self.controller.show_frame("AttendPage")
             else:
                 self.welcome_label.config(text="Errore nella creazione della partita", foreground="red")
         except json.JSONDecodeError:
@@ -118,9 +135,18 @@ class HomePage(tk.Frame):
             print(f"Errore: {str(e)}")
         
     def join_game(self, game_id):
-        response = send_to_server("/join_game", {"game_id": game_id, "nickname": self.controller.shared_data['nickname']})
+        #considera di non passare il nickname
+        response = send_to_server("/join_game", {"game_id": game_id, "nickname": self.controller.shared_data['nickname']}) 
         print(response)
-        if response == "1":
-            self.welcome_label.config(text="Partita unita con successo", foreground="green")
-        else:
-            self.welcome_label.config(text="Errore nell'unione alla partita", foreground="red")
+        try:
+            data = json.loads(response)
+            if data.get("success") == 1:
+                self.welcome_label.config(text="Partita unita con successo", foreground="green")
+                self.controller.shared_data['game_id'] = game_id
+                self.stop_periodic_update_waiting_games()
+                self.controller.show_frame("GamePage")
+            else:
+                errore = data.get("message", "Errore nell'unione alla partita")
+                self.welcome_label.config(text=errore, foreground="red")
+        except Exception as e:
+            self.welcome_label.config(text=f"Errore: {str(e)}", foreground="red")
