@@ -23,9 +23,8 @@ bool partita_in_corso(GAME *partita);
 
 void handlerInviaGames(int *socket_nuovo);
 
-void joinLobby(int*leave_flag,char*buffer,GIOCATORE*nuovo_giocatore);
+void joinLobby(int*leave_flag,cJSON*body,GIOCATORE*nuovo_giocatore);
 
-void checkGame(char* buffer, GIOCATORE*nuovo_giocatore, int *socket_nuovo, int *leave_flag);
 
 GAME* searchPartitaById(int id);
 

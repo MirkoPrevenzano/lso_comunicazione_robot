@@ -53,7 +53,6 @@ void rimuovi_game_queue(GAME*partita){
                 }
             }
         }
-        printf("Partita con id: %d rimossa\n", partita->id);
         free(partita);
     }
     pthread_mutex_unlock(&gameListLock);
@@ -92,39 +91,25 @@ void new_game(int*leave_flag,char*buffer,GIOCATORE*giocatore){
     
 }
 
-<<<<<<< HEAD
 void gestioneRichiestaJSONuscita(cJSON*json,int*leave_flag,int*leave_game){
-    if(json==NULL)
-        return;
-    
-    cJSON *path = cJSON_GetObjectItem(json, "path");
-
-    if(path==NULL){
-        return;
-    }else{
-        if (strcmp(path->valuestring, "/close") == 0) {
-            printf("Richiesta uscita attesa ricevuta\n");
-=======
- 
-void GameStartPlayer1(int*leave_flag,char*buffer,GAME*nuova_partita){
-    int ricevuto=0;
-    int leave_game=0;
-    //se ricevo il numero 1 vuol dire che è stato premuto il pulsante esci
-    //recv_with_timeout usa la funzione select per fare un timeout di 10 secondi
-    while(!(*leave_flag) && !leave_game && (nuova_partita->giocatoreParticipante[1]==NULL)){
-        ricevuto = recv_with_timeout(*(nuova_partita->giocatoreParticipante[0]->socket),buffer,sizeof(buffer),10);
-        //gestioneRichiesta(path, leave_flag, leave_game);
-        if(ricevuto>0){
->>>>>>> 0fb46b1 (Inserimento paggina attesa, gestione richiesta di abbandono partita senza chiudere l'app)
-            *leave_flag=1;
-
+    if(json!=NULL){
+        cJSON *path = cJSON_GetObjectItem(json, "path");
+        if (path == NULL) {
+            printf("Richiesta JSON non valida: manca il campo 'path'\n");
         }
-        if(strcmp(path->valuestring, "/left_game") == 0) {
-            printf("Richiesta di uscita dalla partita ricevuta\n");
-            *leave_game=1;
-            
+        else {
+            printf("Richiesta JSON ricevuta: %s\n", path->valuestring);
+            fflush(stdout);
+            if (strcmp(path->valuestring, "/close") == 0) {
+                printf("Richiesta uscita attesa ricevuta\n");
+                *leave_flag=1;
+            }
+            if(strcmp(path->valuestring, "/left_game") == 0) {
+                printf("Richiesta di uscita dalla partita ricevuta\n");
+                *leave_game=1;
+            }
         }
-        return;
+        cJSON_Delete(json);
     }
 } 
 
@@ -132,31 +117,27 @@ void GameStartPlayer1(int*leave_flag,char*buffer,GAME*nuova_partita){
     cJSON* json=NULL;
     int leave_game=0;
     
+    //attendo il secondo giocatore
     while(!(*leave_flag)&& !(leave_game) && (nuova_partita->giocatoreParticipante[1]==NULL)){
         json = read_with_timeout(*(nuova_partita->giocatoreParticipante[0]->socket),buffer,sizeof(buffer),10,&leave_game);
         gestioneRichiestaJSONuscita(json,leave_flag,&leave_game);
     }
+    printf("Esco dalla lettura con leave_flag: %d, leave_game: %d\n", *leave_flag, leave_game);
+    fflush(stdout);
 
 
     if(*leave_flag==1 || leave_game==1){
-            rimuovi_game_queue(nuova_partita);
-            return ;
-    }
-    if(leave_game==1){
-        printf("Giocatore %s ha lasciato la partita\n",nuova_partita->giocatoreParticipante[0]->nome);
         rimuovi_game_queue(nuova_partita);
-        return;
+        return ;
     }
+    printf("Giocatore 1 ha iniziato la partita con id: %d\n", nuova_partita->id);
+    fflush(stdout);
     
-    
-
-<<<<<<< HEAD
+    sendJoinGame(nuova_partita->giocatoreParticipante[1],nuova_partita);
     GamePlayer1(leave_flag,&leave_game,buffer,nuova_partita,nuova_partita->giocatoreParticipante[0]);
     
-=======
-    GamePlayer1(leave_flag,buffer,nuova_partita,nuova_partita->giocatoreParticipante[0]);
-    printf("Partita con id: %d terminata\n",nuova_partita->id);
->>>>>>> 0fb46b1 (Inserimento paggina attesa, gestione richiesta di abbandono partita senza chiudere l'app)
+    printf("Giocatore 1 ha terminato la partita con id: %d\n", nuova_partita->id);
+    fflush(stdout);
     //TO-DO il cambio di properitario
     rimuovi_game_queue(nuova_partita);
     
@@ -164,62 +145,105 @@ void GameStartPlayer1(int*leave_flag,char*buffer,GAME*nuova_partita){
 
 
 cJSON* read_with_timeout(int sockfd, char* buffer, size_t len, int timeout_sec,int*leave_game) {
+    // Funzione per leggere dati da un socket con timeout
+    //fd_set: insieme di descrittori di file
+    //timeout: struttura che specifica il timeout per la lettura
     fd_set readfds;
     struct timeval timeout;
 
+    // FD_ZERO inizializza l'insieme di descrittori di file a zero
     FD_ZERO(&readfds);
+
+    // Aggiungi il socket al set di descrittori di file
     FD_SET(sockfd, &readfds);
 
+    // Imposta il timeout
     timeout.tv_sec = timeout_sec;
+    // Imposta i microsecondi a zero per un timeout preciso
     timeout.tv_usec = 0;
 
+    // Attendi che il socket sia pronto per la lettura o che il timeout scada
     int ret = select(sockfd + 1, &readfds, NULL, NULL, &timeout);
+
+    //se return è negativo, si è verificato un errore
+    //se return è zero, il timeout è scaduto
+    //se return è maggiore di zero, il socket è pronto per la lettura
     if (ret < 0) {
         perror("ERRORE");
-         *leave_game = 1;
-        return NULL; // errore
+        *leave_game = 1;
     } else if (ret == 0) {
-        // Timeout scaduto
         printf("Timeout: nessun dato ricevuto entro %d secondi\n", timeout_sec);
-        return NULL;
+    }
+    else{
+        int size = read(sockfd, buffer, sizeof(buffer)-1);
+        if(size > 0){
+            buffer[size] = '\0';
+            printf("Buffer ricevuto: %s\n", buffer);
+            fflush(stdout);
+            cJSON *json = cJSON_Parse(buffer);
+
+            if (json == NULL) {
+                printf("Errore nel parser JSON\n");
+                *leave_game = 1;
+            } else 
+                return json;        
+        }
     }
 
     // Socket pronto per la lettura
-    int size = read(sockfd, buffer, sizeof(buffer)-1);
-    if(size > 0){
-        buffer[size] = '\0';
-        printf("Buffer ricevuto: %s\n", buffer);
-        fflush(stdout);
-        cJSON *json = cJSON_Parse(buffer);
-
-    if (json == NULL) {
-        printf("Errore nel parser JSON\n");
-        *leave_game = 1;
-    } else {
-        return json;
-        }
-    }
+    
     return NULL;
 }
 
+void sendJoinGame(GIOCATORE*giocatore2, GAME* partita){
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "type", "start_game");
+    cJSON_AddNumberToObject(root, "game_id", partita->id);
+    cJSON_AddNumberToObject(root, "simbolo", 1); // Corretto: simbolo come numero
+    cJSON_AddStringToObject(root, "nickname_partecipante", giocatore2->nome);
+    //game_data:{TRIS: [[0,0,0],[0,0,0],[0,0,0]], esito:0, turono:0}
+    cJSON *game_data = cJSON_CreateObject();
+    cJSON *tris = cJSON_CreateArray();
+    for (int i = 0; i < 3; i++) {
+        cJSON *row = cJSON_CreateArray();
+        for (int j = 0; j < 3; j++) {
+            cJSON_AddItemToArray(row, cJSON_CreateNumber(0)); // Inizializza la matrice con zeri
+        }
+        cJSON_AddItemToArray(tris, row);
+    }
+    cJSON_AddItemToObject(game_data, "TRIS", tris);
+    cJSON_AddNumberToObject(game_data, "esito", 0);
+    cJSON_AddNumberToObject(game_data, "turno", 0);
+    cJSON_AddItemToObject(root, "game_data", game_data);
 
-void GameStartPlayer2(int*leave_flag,char*buffer,GAME*nuova_partita,GIOCATORE*giocatore2){
+    char *msg = cJSON_PrintUnformatted(root);
+    send(*(partita->giocatoreParticipante[0]->socket), msg, strlen(msg), 0);
+    cJSON_Delete(root);
+    free(msg);
+    printf("Inviato messaggio di unione partita al giocatore 1");
+    fflush(stdout);
+}
+void GameStartPlayer2(int*leave_flag,GAME*nuova_partita,GIOCATORE*giocatore2){
     int leave_game=0;
     pthread_mutex_lock(&gameListLock);
-
+    //fai di nuovo controllo???
     if(nuova_partita->giocatoreParticipante[1]==NULL){
         nuova_partita->giocatoreParticipante[1]=giocatore2;
+      
         pthread_mutex_unlock(&gameListLock);
         sendSuccessNewGame(1,giocatore2,nuova_partita->id);
-        GamePlayer2(leave_flag,&leave_game,buffer,nuova_partita,giocatore2);
+        //invio messaggio di unione partita al giocatore 1:
+        GamePlayer2(leave_flag,&leave_game,nuova_partita,giocatore2);
+
 
     }else{
         *leave_flag=1;
         sendSuccessNewGame(0,giocatore2,-1);
+        pthread_mutex_unlock(&gameListLock);
+
     }
 
 
-    pthread_mutex_unlock(&gameListLock);
 }
 
 void sendSuccessNewGame(int success, GIOCATORE*giocatore, int id_partita){
@@ -232,14 +256,12 @@ void sendSuccessNewGame(int success, GIOCATORE*giocatore, int id_partita){
     free(msg);
 }
 
-<<<<<<< HEAD
 void GamePlayer1(int *leave_flag,int*leave_game,char*buffer,GAME*nuova_partita,GIOCATORE*Giocatore1){
+        printf("sono in partita: %s\n", Giocatore1->nome);
+        fflush(stdout);
+  
         while((!*leave_flag)&&(!*leave_game)&& (nuova_partita->esito==0)){
-=======
-void GamePlayer1(int *leave_flag,char*buffer,GAME*nuova_partita,GIOCATORE*Giocatore1){
-      
-        while(!(*leave_flag) && nuova_partita->esito==0){
->>>>>>> 0fb46b1 (Inserimento paggina attesa, gestione richiesta di abbandono partita senza chiudere l'app)
+           
             if(nuova_partita->turno!=0){
                    sem_wait(&(nuova_partita->semaforo));   
             }
@@ -256,8 +278,12 @@ void GamePlayer1(int *leave_flag,char*buffer,GAME*nuova_partita,GIOCATORE*Giocat
         }
 }
 
-void GamePlayer2(int *leave_flag,int*leave_game,char*buffer,GAME*nuova_partita,GIOCATORE*Giocatore2){
-        while((!*leave_flag)&&(!*leave_game) && !(nuova_partita->esito>0)){
+void GamePlayer2(int *leave_flag,int*leave_game,GAME*nuova_partita,GIOCATORE*Giocatore2){
+        //stampa("sono nel game player 2\n");
+        //fflush(stdout);
+        printf("sono in partita: %s\n", Giocatore2->nome);
+        fflush(stdout);
+        while((!*leave_flag)&&(!*leave_game) && !(nuova_partita->esito==0)){
             if(nuova_partita->turno!=1){
                    sem_wait(&(nuova_partita->semaforo));   
             }
@@ -381,4 +407,3 @@ void RiceviJsonMossa(int*leave_game,char*buffer,GAME*partita,GIOCATORE*giocatore
 void ModificaArrayTris(int i,int j,int giocatore,GAME*partita){
     partita->TRIS[i][j]=giocatore;
 }*/
-

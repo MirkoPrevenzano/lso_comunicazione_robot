@@ -190,13 +190,15 @@ void checkRouter(char* buffer, GIOCATORE*nuovo_giocatore, int *socket_nuovo, int
         cJSON *path = cJSON_GetObjectItem(json, "path");
         cJSON *body = cJSON_GetObjectItem(json, "body");
 
-        
+        //questo primo path è restituisce al client la lista dei giochi in attesa
         if (strcmp(path->valuestring, "/waiting_games") == 0) {
             printf("Richiesta di giochi in attesa ricevuta\n");
             handlerInviaGames(socket_nuovo);
             //il server rimane in attesa per la scelta della lobby oppure eventuale uscita
-            joinLobby(leave_flag,buffer,nuovo_giocatore);
-
+        }
+        if(strcmp(path->valuestring, "/join_game") == 0) {
+            printf("Richiesta di partecipazione a una partita ricevuta\n");
+            joinLobby(leave_flag,body,nuovo_giocatore);
         }
         if(strcmp(path->valuestring, "/new_game") == 0) {
             printf("Richiesta di creazione partita ricevuta\n");

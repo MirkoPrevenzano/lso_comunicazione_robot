@@ -26,53 +26,51 @@ void handlerInviaGames(int * socket_nuovo){
         }
     }
 
-        cJSON_AddItemToObject(root, "partite", partite_array);
-        char *json_str=cJSON_PrintUnformatted(root);
-        cJSON_Delete(root);
-        send(*(socket_nuovo),json_str,strlen(json_str),0);
-        free(json_str); // libera la memoria allocata da cJSON_PrintUnformatted
+    cJSON_AddItemToObject(root, "partite", partite_array);
+    char *json_str=cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    send(*(socket_nuovo),json_str,strlen(json_str),0);
+    free(json_str); // libera la memoria allocata da cJSON_PrintUnformatted
 
 }
 
 //inviare con un send un messaggio di errore nei vari casi* TO-DO
 
-void joinLobby(int*leave_flag,char*buffer,GIOCATORE*nuovo_giocatore){
-    int size = read(*nuovo_giocatore->socket, buffer, sizeof(buffer)-1);
-    if(size > 0){
-        buffer[size] = '\0';
-        printf("Buffer ricevuto: %s\n", buffer);
-        fflush(stdout);
-        cJSON *json = cJSON_Parse(buffer);
-
-    if (json == NULL) {
-        printf("Errore nel parser JSON\n");
-        *leave_flag = 1;
-    } else {
-            checkGame(buffer,nuovo_giocatore,nuovo_giocatore->socket,leave_flag);
+void joinLobby(int*leave_flag,cJSON * body,GIOCATORE*nuovo_giocatore){
+    printf("Stampa di body: %s\n", body->valuestring);
+    if (body && cJSON_IsString(body)) {
+        //estraggo game_id dal body
+        cJSON *body_json = cJSON_Parse(body->valuestring);
+        if (!body_json) {
+            printf("Errore nel parsing del body JSON.\n");
+            *leave_flag = 1; // Indica un errore
+            return;
         }
-    }
-     printf("Errore\n");
-    *leave_flag = 1;
-    return;
-}
-
-void checkGame(char* buffer, GIOCATORE*nuovo_giocatore, int *socket_nuovo, int *leave_flag){
-        cJSON *json = cJSON_Parse(buffer);
-        if (!json) return;
-        cJSON *path = cJSON_GetObjectItem(json, "path");
-        cJSON *body = cJSON_GetObjectItem(json, "body");
-
-        if (strcmp(path->valuestring, "/join_game") == 0) {
-            cJSON *body_json = cJSON_Parse(body->valueint);
-            if(cJSON_IsNumber(body_json)){
-            if(partita_in_corso(searchPartitaById(body->valueint))){
-                    GameStartPlayer2(leave_flag,buffer,searchPartitaById(body->valueint),nuovo_giocatore);
-                }
+        // Controllo se il campo "game_id" è presente e se è un numero
+        cJSON *id_item = cJSON_GetObjectItem(body_json, "game_id");
+        if (id_item && cJSON_IsNumber(id_item)) {
+            int id_partita = id_item->valueint;
+            GAME *partita = searchPartitaById(id_partita);
+            if (!partita_in_corso(partita)) {
+                GameStartPlayer2(leave_flag, partita, nuovo_giocatore);
+            } else {
+                printf("Partita con ID %d non trovata.\n", id_partita);
+                *leave_flag = 1; // Indica un errore
             }
+        } else {
+            printf("Il campo 'game_id' non è presente o non è un numero.\n");
+            *leave_flag = 1; // Indica un errore
         }
+        cJSON_Delete(body_json); // Libera la memoria allocata
+        return;
+    } else {
+        printf("Il body della richiesta non è valido.\n");
+        *leave_flag = 1; // Indica un errore
+    }
 
-        return ;
 }
+
+
 
 GAME* searchPartitaById(int id){
     for(int i=0;i<MAX_GAME;i++)
@@ -158,4 +156,4 @@ GAME* searchPartitaById(int id){
 
     }
     }
-}  */  
+}  */
