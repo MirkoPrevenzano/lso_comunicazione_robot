@@ -18,16 +18,13 @@ def send_to_server(path, body):
     return risposta
 
 def receive_from_server():
-    s.setblocking(False)  # Imposta il socket in modalità non bloccante
+    s.setblocking(False)  # Modalità bloccante: aspetta finché arrivano dati
     try:
         data = s.recv(4096).decode()
         if not data:
             return None
         return data
-    except BlockingIOError:
-        return None
     except Exception as e:
-        print(f"Errore durante la ricezione dei dati: {e}")
         return None
-    finally: s.setblocking(True)  # Ripristina la modalità bloccante
-        
+    finally:
+        s.setblocking(True)  # Torna alla modalità non bloccante

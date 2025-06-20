@@ -26,7 +26,7 @@ void GamePlayer1(int *leave_flag,int*leave_game,char*buffer,GAME*nuova_partita,G
 void GamePlayer2(int *leave_flag,int*leave_game,GAME*nuova_partita,GIOCATORE*Giocatore2);
 
 cJSON* read_with_timeout(int sockfd, char* buffer, size_t len, int timeout_sec,int*leave_game);
-void gestioneRichiestaJSONuscita(cJSON* json,int*leave_flag,int*leave_game);
+void gestioneRichiestaJSONuscita(cJSON* json,int*leave_flag,int*leave_game, GIOCATORE *);
 void aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario);
 void remove_game_by_player_id(int id);
 void sendSuccessNewGame(int success, GIOCATORE*giocatore, int id_partita);

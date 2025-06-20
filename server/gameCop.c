@@ -1,21 +1,12 @@
 #include "game.h"
 #include "server.h"
-
 void aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario){
 
-    // MODIFICA: Controllo parametri null prima di procedere
-    if (!nuova_partita || !giocatoreProprietario) {
-        fprintf(stderr, "Parametri non validi\n");
-        return;
-    }
-
+    //controllo che non ci siano più di MAX_GAME partite
     pthread_mutex_lock(&gameListLock);
 
-    // MODIFICA: Controllo numero partite ora protetto dal mutex
     if(numero_partite>=MAX_GAME){
-        // MODIFICA: Sostituito perror con fprintf per errore logico
-        fprintf(stderr, "numero max partite superato\n");
-        pthread_mutex_unlock(&gameListLock); // MODIFICA: Aggiunto unlock mancante
+        perror("numero max partite superato");
         return;
     }
 
@@ -23,8 +14,7 @@ void aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario){
     for(int i=0; i < MAX_GAME; ++i){
         if(Partite[i]){
             if(Partite[i]->giocatoreParticipante[0] && Partite[i]->giocatoreParticipante[0]->id == giocatoreProprietario->id){
-                // MODIFICA: Sostituito perror con fprintf
-                fprintf(stderr, "giocatore già in una partita\n");
+                perror("giocatore già in una partita");
                 pthread_mutex_unlock(&gameListLock);
                 return;
             }
@@ -54,7 +44,6 @@ void rimuovi_game_queue(GAME*partita){
 
     pthread_mutex_lock(&gameListLock);
     if(partita!=NULL){
-        // MODIFICA: Decremento numero_partite prima della ricerca per consistenza
         numero_partite--;
         for(int i=0; i < MAX_GAME; ++i){
             if(Partite[i]){
@@ -75,7 +64,6 @@ void remove_game_by_player_id(int id) {
         if (Partite[i] && Partite[i]->giocatoreParticipante[0] && Partite[i]->giocatoreParticipante[0]->id == id) {
             free(Partite[i]);
             Partite[i] = NULL;
-            numero_partite--; // MODIFICA: Aggiunto decremento mancante
             break;
         }
     }
@@ -85,25 +73,25 @@ void remove_game_by_player_id(int id) {
 
 void new_game(int*leave_flag,char*buffer,GIOCATORE*giocatore){
     GAME *nuova_partita = (GAME *)malloc(sizeof(GAME));
-    
-    // MODIFICA: Controllo malloc fallito prima di chiamare aggiungi_game_queue
+    aggiungi_game_queue(nuova_partita,giocatore);
+    //const char *msg = "1";
     if(!nuova_partita){
         sendSuccessNewGame(0,giocatore, -1);
         return;
     }
+    else{
+        sendSuccessNewGame(1,giocatore, nuova_partita->id);
+        printf("Partita creata con id: %d\n",nuova_partita->id);
+        fflush(stdout);
+        printf("Giocatore %s ha creato una partita\n",giocatore->nome);
+        GameStartPlayer1(leave_flag,buffer,nuova_partita);
+        
+    }
+   
     
-    aggiungi_game_queue(nuova_partita,giocatore);
-    
-    // MODIFICA: Rimosso controllo ridondante, nuova_partita è sempre valida qui
-    sendSuccessNewGame(1,giocatore, nuova_partita->id);
-    printf("Partita creata con id: %d\n",nuova_partita->id);
-    fflush(stdout);
-    printf("Giocatore %s ha creato una partita\n",giocatore->nome);
-    GameStartPlayer1(leave_flag,buffer,nuova_partita);
 }
 
-// MODIFICA: Aggiunto parametro GIOCATORE per poter inviare risposta
-void gestioneRichiestaJSONuscita(cJSON*json,int*leave_flag,int*leave_game,GIOCATORE*giocatore){
+void gestioneRichiestaJSONuscita(cJSON*json,int*leave_flag,int*leave_game){
     if(json!=NULL){
         cJSON *path = cJSON_GetObjectItem(json, "path");
         if (path == NULL) {
@@ -116,20 +104,9 @@ void gestioneRichiestaJSONuscita(cJSON*json,int*leave_flag,int*leave_game,GIOCAT
                 printf("Richiesta uscita attesa ricevuta\n");
                 *leave_flag=1;
             }
-            // MODIFICA: Aggiunto else if per evitare controlli multipli
-            else if(strcmp(path->valuestring, "/left_game") == 0) {
+            if(strcmp(path->valuestring, "/left_game") == 0) {
                 printf("Richiesta di uscita dalla partita ricevuta\n");
                 *leave_game=1;
-                // MODIFICA: Invia risposta di conferma al client
-                if(giocatore) {
-                    cJSON *response = cJSON_CreateObject();
-                    cJSON_AddNumberToObject(response, "success", 1);
-                    cJSON_AddStringToObject(response, "message", "Uscita dalla partita confermata");
-                    char *msg = cJSON_PrintUnformatted(response);
-                    send(*(giocatore->socket), msg, strlen(msg), 0);
-                    cJSON_Delete(response);
-                    free(msg);
-                }
             }
         }
         cJSON_Delete(json);
@@ -141,21 +118,9 @@ void GameStartPlayer1(int*leave_flag,char*buffer,GAME*nuova_partita){
     int leave_game=0;
     
     //attendo il secondo giocatore
-    // MODIFICA: Aggiunta protezione mutex per accesso a giocatoreParticipante[1]
-    pthread_mutex_lock(&gameListLock);
-    int has_player2 = (nuova_partita->giocatoreParticipante[1] != NULL);
-    pthread_mutex_unlock(&gameListLock);
-    
-    while(!(*leave_flag) && !(leave_game) && !has_player2){
-    
-        json = read_with_timeout(*(nuova_partita->giocatoreParticipante[0]->socket),buffer,1024,10,&leave_game);
-        // MODIFICA: Aggiunto parametro giocatore per poter inviare risposta
-        gestioneRichiestaJSONuscita(json,leave_flag,&leave_game,nuova_partita->giocatoreParticipante[0]);
-        
-        // MODIFICA: Ricontrolla presenza giocatore 2 ad ogni iterazione
-        pthread_mutex_lock(&gameListLock);
-        has_player2 = (nuova_partita->giocatoreParticipante[1] != NULL);
-        pthread_mutex_unlock(&gameListLock);
+    while(!(*leave_flag)&& !(leave_game) && (nuova_partita->giocatoreParticipante[1]==NULL)){
+        json = read_with_timeout(*(nuova_partita->giocatoreParticipante[0]->socket),buffer,sizeof(buffer),10,&leave_game);
+        gestioneRichiestaJSONuscita(json,leave_flag,&leave_game);
     }
     printf("Esco dalla lettura con leave_flag: %d, leave_game: %d\n", *leave_flag, leave_game);
     fflush(stdout);
@@ -210,26 +175,18 @@ cJSON* read_with_timeout(int sockfd, char* buffer, size_t len, int timeout_sec,i
         printf("Timeout: nessun dato ricevuto entro %d secondi\n", timeout_sec);
     }
     else{
-        // MODIFICA: Corretto bug sizeof(buffer) -> len-1 per evitare buffer overflow
-        memset(buffer, 0, len);
-        int size = read(sockfd, buffer, len-1);
+        int size = read(sockfd, buffer, sizeof(buffer));
         if(size > 0){
             buffer[size] = '\0';
             printf("Buffer ricevuto: %s\n", buffer);
             fflush(stdout);
-            // MODIFICA: Cerca la fine del JSON e tronca la stringa se necessario
-            
             cJSON *json = cJSON_Parse(buffer);
+
             if (json == NULL) {
                 printf("Errore nel parser JSON\n");
                 *leave_game = 1;
             } else 
                 return json;        
-        }
-        // MODIFICA: Aggiunta gestione caso size <= 0
-        else {
-            printf("Errore lettura socket o connessione chiusa\n");
-            *leave_game = 1;
         }
     }
 
@@ -266,7 +223,6 @@ void sendJoinGame(GIOCATORE*giocatore2, GAME* partita){
     printf("Inviato messaggio di unione partita al giocatore 1");
     fflush(stdout);
 }
-
 void GameStartPlayer2(int*leave_flag,GAME*nuova_partita,GIOCATORE*giocatore2){
     int leave_game=0;
     pthread_mutex_lock(&gameListLock);
@@ -281,7 +237,7 @@ void GameStartPlayer2(int*leave_flag,GAME*nuova_partita,GIOCATORE*giocatore2){
 
 
     }else{
-        // MODIFICA: Rimosso *leave_flag=1 che causava uscita impropria
+        *leave_flag=1;
         sendSuccessNewGame(0,giocatore2,-1);
         pthread_mutex_unlock(&gameListLock);
 
@@ -309,12 +265,6 @@ void GamePlayer1(int *leave_flag,int*leave_game,char*buffer,GAME*nuova_partita,G
             if(nuova_partita->turno!=0){
                    sem_wait(&(nuova_partita->semaforo));   
             }
-            
-            // MODIFICA: Aggiunto controllo condizioni uscita dopo sem_wait
-            if(*leave_flag || *leave_game || nuova_partita->esito != 0){
-                break;
-            }
-            
             //inviare matrice del tris al giocatore 1
             
 
@@ -338,11 +288,6 @@ void GamePlayer2(int *leave_flag,int*leave_game,GAME*nuova_partita,GIOCATORE*Gio
                    sem_wait(&(nuova_partita->semaforo));   
             }
             
-            // MODIFICA: Aggiunto controllo condizioni uscita dopo sem_wait
-            if(*leave_flag || *leave_game || nuova_partita->esito != 0){
-                break;
-            }
-            
             //inviare matrice del tris al giocatore 2
 
 
@@ -355,3 +300,110 @@ void GamePlayer2(int *leave_flag,int*leave_game,GAME*nuova_partita,GIOCATORE*Gio
             sem_post(&(nuova_partita->semaforo)); 
         }
 }
+
+
+
+/*void partecipa_game(int*leave_flag,int id_lobby,char*buffer,GIOCATORE *giocatore){
+    pthread_mutex_lock(&gameListLock);
+    GAME*gioco=SearchGiocoByID(id_lobby);
+    
+    if(gioco!=NULL)
+        gioco->giocatori[1]=giocatore;
+    else{
+        pthread_mutex_unlock(&gameListLock););
+        return;//inviare messaggio d'errore TO-DO
+    }
+    pthread_mutex_unlock(&gameListLock););
+    
+    StartGame(1,buffer,gioco,giocatore);
+
+    pthread_mutex_lock(&gameListLock);
+    gioco->giocatori[1]=NULL;
+    pthread_mutex_unlock(&gameListLock););
+}
+
+
+
+bool controlla_vittoria(GAME*partita,int giocatore,int*esito){   
+    int(*matrice)[3]=partita->TRIS;
+    
+for (int i = 0; i < 3; i++) {
+    if ((matrice[i][0] == giocatore && matrice[i][1] == giocatore && matrice[i][2] == giocatore) ||
+        (matrice[0][i] == giocatore && matrice[1][i] == giocatore && matrice[2][i] == giocatore)) {
+        *esito=giocatore;
+        return 1; // Vittoria
+    }
+}
+// Diagonali
+if ((matrice[0][0] == giocatore && matrice[1][1] == giocatore && matrice[2][2] == giocatore) ||
+    (matrice[0][2] == giocatore && matrice[1][1] == giocatore && matrice[2][0] == giocatore)) {
+    *esito=giocatore;
+    return 1; // Vittoria
+}
+
+return 0; // Nessuna vittoria
+}
+
+bool controlla_pareggio(GAME*partita,int* esito){
+    
+    if(esito!=0){
+        int(*matrice)[3]=partita->TRIS;
+        for(int i=0;i<3;i++)
+            for(int j=0;j<3;j++)
+                if(matrice[i][j]==0)
+                    return 0;
+    }else
+        return 0;
+
+    return 1;
+
+}
+
+
+void inviaJsonMatrice(GAME*partita, GIOCATORE*giocatore){
+    cJSON*root = cJSON_createObject();
+    int(*matrice)[3]=partita->TRIS;
+    cJSON *json_array = cJSON_CreateArray();
+    for(int i=0;i<3;i++){
+        cJSON *json_riga = cJSON_CreateArray();
+        for(int j=0;j<3;j++){
+            cJSON_AddItemToArray(json_riga, cJSON_CreateNumber(matrice[i][j]));
+        }
+        cJSON_AddItemToArray(json_array, json_riga);
+    }
+
+        cJSON_AddItemToObject(root, "partita_tris", json_array);
+        
+        char*json_str=cJSON_PrintfUnformatted(root);
+        cJON_Delete(root);
+        send(*(giocatore->socket),json_str,strlen(json_str),0);
+}
+void inviaEsitoPartita(int*esito,GAME*partita){
+    cJSON*root = cJSON_createObject();
+    cJSON_AddStringToObject(root,"path","/esito");
+    cJSON_AddNumberToObject(root,"id_partita",partita->id);
+    if(*esito==1){
+        cJSON_AddStringToObject(root,"vincitore",partita->giocatori[0]->nome);
+        cJSON_AddStringToObject(root,"perdente",partita->giocatori[1]->nome);
+    }
+    else if(*esito==2){
+        cJSON_AddStringToObject(root,"vincitore",partita->giocatori[1]->nome);
+        cJSON_AddStringToObject(root,"perdente",partita->giocatori[0]->nome);
+    }
+
+    char*json_str=cJSON_PrintfUnformatted(root);
+    cJON_Delete(root);
+    send(*(partita->giocatori[0]->socket),json_str,strlen(json_str),0);
+    send(*(partita->giocatori[1]->socket),json_str,strlen(json_str),0);
+}
+void RiceviJsonMossa(int*leave_game,char*buffer,GAME*partita,GIOCATORE*giocatore){
+    if(partita->esito!=-1){
+        *leave_game=0;
+        return;
+    }
+    handlerRiceviJsonMossa(leave_game,buffer,giocatore,partita);
+
+}
+void ModificaArrayTris(int i,int j,int giocatore,GAME*partita){
+    partita->TRIS[i][j]=giocatore;
+}*/

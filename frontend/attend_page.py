@@ -61,26 +61,30 @@ class AttendPage(tk.Frame):
             self.controller.shared_data.clear()
     
     def ascolta_server(self):
-        response=receive_from_server()
-        if response:
-            try:
-                data = json.loads(response)
-                print("Ricevuto dati dal server:", data)
-                if data.get("type") == "start_game":
-                    # Salva i dati nella shared_data del controller
-                    self.controller.shared_data["simbolo_assegnato"] = data.get("simbolo", "")
-                    self.controller.shared_data["nomePartecipante"] = data.get("nickname_partecipante", "")
-                    self.controller.shared_data["game_id"] = data.get("game_id", "")
-                    self.controller.shared_data["game_data"] = data.get("game_data", {})
+        try:
+            response = receive_from_server(timeout=5)  # 5 secondi timeout
+            print("Ricevuto:", response)
+            if response:
                 
-                    # Passa a GamePage
-                    self.controller.show_frame("GamePage")
-                    print("Partita iniziata con successo.")
-                    return  # Esci per evitare richiami multipli
-                else:
-                    print("Errore nell'uscita dalla partita:", data.get("message", "Errore sconosciuto."))
-            except json.JSONDecodeError:
-                print("Errore nella decodifica della risposta dal server.")
-        else:
-            self.after(500, self.ascolta_server)  # Riprova dopo 500 ms se non c'è risposta  
+                    print("aaa", response)
+                    data = json.loads(response)
+                    print("Ricevuto dati dal server:", data)
+                    if data.get("type") == "start_game":
+                        # Salva i dati nella shared_data del controller
+                        self.controller.shared_data["simbolo_assegnato"] = data.get("simbolo", "")
+                        self.controller.shared_data["nomePartecipante"] = data.get("nickname_partecipante", "")
+                        self.controller.shared_data["game_id"] = data.get("game_id", "")
+                        self.controller.shared_data["game_data"] = data.get("game_data", {})
+                    
+                        # Passa a GamePage
+                        self.controller.show_frame("GamePage")
+                        print("Partita iniziata con successo.")
+                        return  # Esci per evitare richiami multipli
+                    else:
+                        print("Errore nell'uscita dalla partita:", data.get("message", "Errore sconosciuto."))
+            else:
+                self.after(500, self.ascolta_server)  # Riprova dopo 500 ms se non c'è risposta  
+        except Exception as e:
+            print(f"Errore durante l'ascolto: {e}")
+            self.after(1000, self.ascolta_server)  # Riprova dopo 1 secondo
 
