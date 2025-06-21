@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
+import json
 from client_network import send_to_server
 
 class LoginPage(tk.Frame):
@@ -49,11 +50,23 @@ class LoginPage(tk.Frame):
 
         if username:
             response = send_to_server("/register", {"nickname": username})
-            print(response)
+            #{id:1}
+
+            try:
+                # Il server restituisce una stringa JSON, dobbiamo parsarla
+                response_data = json.loads(response)
+                if isinstance(response_data, dict) and 'id' in response_data:
+                    player_id = int(response_data['id'])
+                else:
+                    player_id = -1
+            except (json.JSONDecodeError, TypeError):
+                player_id = -1
+            
             ##if response == "Login eseguito con successo":
-            if(response == "1"):
+            if(player_id > -1):
                 self.status_label.config(text="Login eseguito con successo", foreground="green")
                 self.controller.shared_data['nickname'] = username
+                self.controller.shared_data['player_id'] = player_id
                 self.controller.show_frame("HomePage")
             else:
                 self.status_label.config(text="Errore nel login " , foreground="red")

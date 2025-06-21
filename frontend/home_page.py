@@ -11,6 +11,13 @@ from client_network import send_to_server, receive_from_server
 CARD_FRAME_STYLE = "Card.TFrame"
 ACCENT_BUTTON_STYLE = "Accent.TButton"
 
+# Costanti per stati richieste
+STATO_IN_ATTESA = "in attesa"
+
+# Costanti per messaggi di errore
+ERROR_SERVER_RESPONSE = "Errore nella risposta del server"
+ERROR_CONNECTION = "Errore di connessione o BrokenPipe"
+
 class HomePage(tk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
@@ -183,12 +190,19 @@ class HomePage(tk.Frame):
         if message_type == "/new_request":
             # Nuova richiesta ricevuta dal server (PUSH)
             new_request = {
-                'game_id': data.get('id_partita'),
-                'player_id': data.get('id_giocatore'),
-                'mittente': data.get('name_giocatore', 'Sconosciuto'),
+                'game_id': data.get('game_id'),
+                'player_id': data.get('player_id'),
+                'mittente': data.get('player_name', 'Sconosciuto'),
             }
             self.add_received_request(new_request)
-            print(f"🔔 Nuova richiesta ricevuta da {data.get('name_giocatore')} per partita {data.get('id_partita')}")
+            print(f"🔔 Nuova richiesta ricevuta da {data.get('player_name')} per partita {data.get('player_id')}")
+        elif message_type == "/remove_request":
+            # Richiesta annullata (PUSH)
+            player_id = data.get('player_id')
+            game_id = data.get('game_id')
+            # Rimuovi la richiesta dalla lista locale usando player_id e game_id
+            self.cancel_request(player_id, game_id)
+            print(f"🗑️ Richiesta annullata da {data.get('player_name')} per partita {game_id}")
             
         elif message_type == "request_accepted":
             # Partita iniziata
@@ -369,7 +383,7 @@ class HomePage(tk.Frame):
         frame = ttk.Frame(self.content_container, style=CARD_FRAME_STYLE, relief="raised", borderwidth=1)
         frame.pack(fill="x", padx=4, pady=2)
         
-        info = f"Da: {request['mittente']} | 📩 Richiesta di sfida"
+        info = f"Da: {request['mittente']} Partita: {request['game_id']}| 📩 Richiesta di sfida"
         label = ttk.Label(frame, text=info, style="TLabel")
         label.pack(side="left", padx=10, pady=5)
         
@@ -389,18 +403,18 @@ class HomePage(tk.Frame):
         frame = ttk.Frame(self.content_container, style=CARD_FRAME_STYLE, relief="raised", borderwidth=1)
         frame.pack(fill="x", padx=4, pady=2)
         
-        request_stato = request.get('stato', 'pending')
-        if request_stato == 'pending':
+        request_stato = request.get('stato', STATO_IN_ATTESA)
+        if request_stato == STATO_IN_ATTESA:
             status_icon = "⏳"
         elif request_stato == 'accepted':
             status_icon = "✅"
         else:
             status_icon = "❌"
-        info = f"A: {request['destinatario']} | {status_icon} {request_stato.title()}"
+        info = f"Partita: {request['game_id']} | {status_icon} {request_stato.title()}"
         label = ttk.Label(frame, text=info, style="TLabel")
         label.pack(side="left", padx=10, pady=5)
         
-        if request_stato in ['pending', None]:
+        if request_stato in [STATO_IN_ATTESA, None]:
             cancel_btn = ttk.Button(frame, text="Annulla", 
                                    command=lambda pid=request.get('player_id'), gid=request.get('game_id'): self.cancel_request(pid, gid))
             cancel_btn.pack(side="right", padx=10, pady=5)
@@ -418,15 +432,14 @@ class HomePage(tk.Frame):
             else:
                 self.welcome_label.config(text="Errore nella creazione della partita", foreground="red")
         except json.JSONDecodeError:
-            self.welcome_label.config(text="Errore nella risposta del server", foreground="red")
+            self.welcome_label.config(text=ERROR_SERVER_RESPONSE, foreground="red")
         except Exception as e:
             self.welcome_label.config(text=f"Errore: {str(e)}", foreground="red")
 
     def join_game(self, game_id):
         """Invia una richiesta per unirsi a una partita specifica"""
         response = send_to_server("/add_request", {
-            "id": game_id,
-            "nickname": self.controller.shared_data['nickname']
+            "id": game_id
         })
         try:
             data = json.loads(response)
@@ -435,15 +448,14 @@ class HomePage(tk.Frame):
                 new_request = {
                     'game_id': game_id,
                     'player_id': self.controller.shared_data.get('player_id', 'unknown'),
-                    'destinatario': 'Partita #' + str(game_id),
-                    'stato': 'pending'
+                    'stato': STATO_IN_ATTESA
                 }
+                self.welcome_label.config(text=data.get("message"), foreground="green")
                 self.add_sent_request(new_request)
-                self.welcome_label.config(text="Richiesta inviata con successo!", foreground="green")
             else:
-                self.welcome_label.config(text="Errore nell'invio della richiesta", foreground="red")
+                self.welcome_label.config(text=data.get("message"), foreground="red")
         except json.JSONDecodeError:
-            self.welcome_label.config(text="Errore nella risposta del server", foreground="red")
+            self.welcome_label.config(text=ERROR_SERVER_RESPONSE, foreground="red")
         except Exception as e:
             self.welcome_label.config(text=f"Errore: {str(e)}", foreground="red")
 
@@ -501,24 +513,36 @@ class HomePage(tk.Frame):
 
     def cancel_request(self, player_id, game_id):
         """Annulla una richiesta effettuata"""
-        response = send_to_server("/remove_request", {
-            "player_id": player_id, 
-            "game_id": game_id, 
-            "nickname": self.controller.shared_data['nickname']
-        })
+        print(f"🗑️ DEBUG: Annullamento richiesta player_id={player_id}, game_id={game_id}")
+        
         try:
+            response = send_to_server("/remove_request", {
+                "game_id": game_id, 
+            })
+            print(f"🗑️ DEBUG: Risposta server: {response}")
+            
             data = json.loads(response)
+            print(f"🗑️ DEBUG: Data parsata: {data}")
+            
             if data.get("success") == 1:
                 # Rimuovi la richiesta dalla lista locale usando player_id e game_id
                 self.sent_requests = [r for r in self.sent_requests 
                                     if not (r.get('player_id') == player_id and r.get('game_id') == game_id)]
                 
-                self.welcome_label.config(text="Richiesta annullata", foreground="orange")
+                message = data.get("message", "Richiesta annullata")
+                print(f"🗑️ DEBUG: Messaggio: {message}")
+                self.welcome_label.config(text=message, foreground="orange")
                 print(f"🗑️ Richiesta player:{player_id} game:{game_id} annullata e rimossa dalla lista")
                 self.update_sent_requests()
             else:
-                self.welcome_label.config(text="Errore nell'annullare la richiesta", foreground="red")
+                error_message = data.get("message", "Errore nell'annullare la richiesta")
+                print(f"🗑️ DEBUG: Errore: {error_message}")
+                self.welcome_label.config(text=error_message, foreground="red")
+        except json.JSONDecodeError as e:
+            print(f"🗑️ DEBUG: Errore JSON: {e}")
+            self.welcome_label.config(text=ERROR_SERVER_RESPONSE, foreground="red")
         except Exception as e:
+            print(f"🗑️ DEBUG: Errore generico: {type(e).__name__}: {str(e)}")
             self.welcome_label.config(text=f"Errore: {str(e)}", foreground="red")
 
     def on_frame_configure(self, event):

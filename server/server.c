@@ -147,9 +147,11 @@ void *handle_client(void *arg) {
             // Aggiungi il giocatore alla coda
             queue_add(nuovo_giocatore);
         
-            // Invia "1" al client per indicare il successo
-            const char *success_msg = "1";
-            send(socket_fd, success_msg, strlen(success_msg), 0);
+            // Invia id del giocatore al client
+            cJSON *response = cJSON_CreateObject();
+            cJSON_AddNumberToObject(response, "id", nuovo_giocatore->id);
+            char *response_str = cJSON_PrintUnformatted(response);
+            send(socket_fd, response_str, strlen(response_str), 0);
             printf("Giocatore %s connesso con ID %d\n", nuovo_giocatore->nome, nuovo_giocatore->id);
             fflush(stdout);
             // Avvia il thread per controllare il router
@@ -166,10 +168,12 @@ void *handle_client(void *arg) {
             return NULL;
 
             
-        } else {
-            // Invia "0" al client per indicare un errore
-            const char *error_msg = "0";
-            send(socket_fd, error_msg, strlen(error_msg), 0);
+        }
+        else {
+            printf("Registrazione giocatore fallita\n");
+            fflush(stdout);
+            close(socket_fd);
+            free(nuovo_giocatore);
         }
 
         
@@ -234,8 +238,8 @@ void * checkRouterThread(void *arg) {
         int size = read(socket_fd, buffer, BUFFER_SIZE - 1);
 
         if (size <= 0) {
-            leave_flag = 1;
-            break;
+            leave_flag = 1; // Indica che il client si è disconnesso o c'è stato un errore
+            return NULL;
         }
         buffer[size] = '\0';
         checkRouter(buffer, nuovo_giocatore, socket_fd, &leave_flag);
@@ -273,28 +277,50 @@ void checkRouter(char* buffer, GIOCATORE*nuovo_giocatore, int socket_nuovo, int 
         if(strcmp(path->valuestring, "/add_request") == 0) {
             //body è un json con id della partita
             printf("Richiesta di aggiunta a una partita ricevuta\n");
-            cJSON *id_item = cJSON_GetObjectItem(body, "id");
-            if (id_item && cJSON_IsNumber(id_item)) {
-                int id_partita = id_item->valueint;
-                printf("ID partita: %d\n", id_partita);
-                // Aggiungi la richiesta alla partita
-                aggiungi_richiesta(id_partita, nuovo_giocatore);
+            printf("Body ricevuto: %s\n", body->valuestring);
+            fflush(stdout);
+            
+            // Parsa il JSON body
+            cJSON *body_json = cJSON_Parse(body->valuestring);
+            if (!body_json) {
+                printf("Errore nel parsing del JSON body\n");
+                *leave_flag = 1;
             } else {
-                printf("Il campo 'id' non è presente o non è un numero.\n");
-                *leave_flag = 1; // Indica un errore
+                cJSON *id_item = cJSON_GetObjectItem(body_json, "id");
+                if (id_item && cJSON_IsNumber(id_item)) {
+                    int id_partita = id_item->valueint;
+                    printf("ID partita: %d\n", id_partita);
+                    // Aggiungi la richiesta alla partita
+                    aggiungi_richiesta(id_partita, nuovo_giocatore);
+                } else {
+                    printf("Il campo 'id' non è presente o non è un numero.\n");
+                    send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
+                }
+                cJSON_Delete(body_json);
             }
         }
         if(strcmp(path->valuestring, "/remove_request") == 0) {
             printf("Richiesta di rimozione da una partita ricevuta\n");
-            cJSON *id_item = cJSON_GetObjectItem(body, "id");
-            if (id_item && cJSON_IsNumber(id_item)) {
-                int id_partita = id_item->valueint;
-                printf("ID partita: %d\n", id_partita);
-                // Rimuovi la richiesta dalla partita
-                rimuovi_richiesta(id_partita, nuovo_giocatore); 
+            printf("Body ricevuto: %s\n", body->valuestring);
+            fflush(stdout);
+            
+            // Parsa il JSON body
+            cJSON *body_json = cJSON_Parse(body->valuestring);
+            if (!body_json) {
+                printf("Errore nel parsing del JSON body\n");
+                send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
             } else {
-                printf("Il campo 'id' non è presente o non è un numero.\n");
-                *leave_flag = 1; // Indica un errore
+                cJSON *id_item = cJSON_GetObjectItem(body_json, "game_id");
+                if (id_item && cJSON_IsNumber(id_item)) {
+                    int id_partita = id_item->valueint;
+                    printf("ID partita: %d\n", id_partita);
+                    // Rimuovi la richiesta dalla partita
+                    rimuovi_richiesta(id_partita, nuovo_giocatore); 
+                } else {
+                    printf("Il campo 'game_id' non è presente o non è un numero.\n");
+                    send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
+                }
+                cJSON_Delete(body_json);
             }
         }
         if(strcmp(path->valuestring, "/handle_request") == 0) {

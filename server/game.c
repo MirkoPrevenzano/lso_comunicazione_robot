@@ -74,7 +74,7 @@ void remove_game_by_player_id(int id) {
                 }
             }
             
-            sem_destroy(&Partite[i]->semaforo);
+            //sem_destroy(&Partite[i]->semaforo);
             free(Partite[i]);
             Partite[i] = NULL;
             numero_partite--; // MODIFICA: Aggiunto decremento mancante
@@ -139,7 +139,7 @@ void aggiungi_richiesta(int id_partita, GIOCATORE* giocatore) {
     GAME* partita = Partite[id_partita];
     
     // Controllo se il numero di richieste supera il massimo
-    if(partita->numero_richieste >= MAX_GIOCATORI) {
+    if(partita->numero_richieste > MAX_GIOCATORI) {
         printf("Numero massimo di richieste raggiunto per la partita %d\n", id_partita);
         send_success_message(0, giocatore->socket, "Numero massimo di richieste raggiunto");
         pthread_mutex_unlock(&gameListLock);
@@ -148,7 +148,7 @@ void aggiungi_richiesta(int id_partita, GIOCATORE* giocatore) {
     }
 
     // Controllo se il giocatore ha già una richiesta in questa partita
-    for(int i = 0; i < MAX_GIOCATORI; i++) {
+    for(int i = 0; i < MAX_GIOCATORI-1; i++) {
         if(partita->richieste[i] && partita->richieste[i]->giocatore == giocatore) {
             printf("Il giocatore %s ha già una richiesta in questa partita\n", giocatore->nome);
             send_success_message(0, giocatore->socket, "Richiesta già esistente");
