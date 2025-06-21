@@ -15,12 +15,12 @@
 #include <cjson/cJSON.h> //installata libreria esterna
 #include "player.h"
 #include "game.h"
-#include "handler.h"
+#include "request.h"
 
 #define PORT 8080
 #define BUFFER_SIZE 1024
 #define MAX_GIOCATORI 8
-#define MAX_GAME 8
+#define MAX_GAME 20
 
 //ogni gioco deve sempre avere un proprietario in qualsiasi momento
 
@@ -31,6 +31,7 @@
 // Dichiarazioni
 extern int numero_connessioni;
 extern int numero_partite;
+
 
 extern GAME* Partite[MAX_GAME];
 extern GIOCATORE* Giocatori[MAX_GIOCATORI];
@@ -44,15 +45,18 @@ extern pthread_mutex_t gameListLock;
 //un mutex per l'accesso alla lista dei giocatori 
 //uso di possibili liste linkate
 
-void aggiorna_numero_connessioni(int * socket_nuovo);
+void aggiorna_numero_connessioni(int socket_nuovo);
 
-void queue_add(GIOCATORE*giocatore_add);
+bool queue_add(GIOCATORE*giocatore_add);
 
 void queue_remove(int id);
 
+void * checkRouterThread(void *);
+
 void *handle_client(void *arg);
 
-void checkRouter(char* buffer, GIOCATORE*nuovo_giocatore, int *socket_nuovo, int *leave_flag);
+void checkRouter(char* buffer, GIOCATORE*nuovo_giocatore, int socket_nuovo, int *leave_flag);
 
+void *handle_close(void *);
 
 #endif

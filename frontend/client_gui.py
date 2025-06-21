@@ -12,7 +12,7 @@ class MainApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Client GUI")
-        self.geometry("530x400")
+        self.geometry("530x500")  # Aumentata l'altezza da 400 a 500
         self.resizable(False , False)
 
         #Dizionario per salvare info globali
@@ -60,11 +60,26 @@ class MainApp(tk.Tk):
             frame.update_data()
     
     def on_close(self):
-        try:
-            send_to_server("/close", {})
-            self.destroy()
-        except Exception as e:
-            print(f"Errore durante la chiusura della connessione: {e}")
+        import threading
+        import json
+        from client_network import s
+        
+        def chiudi_connessione():
+            try:
+                # Invia messaggio di chiusura
+                messaggio = {"path": "/close", "body": json.dumps({})}
+                json_data = json.dumps(messaggio)
+                s.sendall(json_data.encode())
+                s.close()
+                print("Connessione chiusa correttamente.")
+            except Exception as e:
+                print(f"Errore durante la chiusura della connessione: {e}")
+        
+        # Avvia la disconnessione in background
+        threading.Thread(target=chiudi_connessione, daemon=True).start()
+        
+        # Chiudi subito la GUI
+        self.destroy()
         
 
 

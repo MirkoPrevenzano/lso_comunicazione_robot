@@ -3,7 +3,7 @@ CC = gcc
 CFLAGS = -Wall -g
 
 # File oggetto
-OBJECTS = server.o player.o handler.o game.o
+OBJECTS = server.o player.o handler.o game.o request.o
 
 # Nome dell'eseguibile finale
 TARGET = server
@@ -27,6 +27,10 @@ handler.o: handler.c
 # Regola per compilare il file game.o
 game.o: game.c
 	$(CC) $(CFLAGS) -c game.c -o game.o
+
+# Regola per compilare il file request.o
+request.o: request.c
+	$(CC) $(CFLAGS) -c request.c -o request.o
 
 # Pulizia dei file oggetto e dell'eseguibile
 clean:

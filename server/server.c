@@ -1,4 +1,5 @@
 #include "./server.h"
+#include "./handler.h"
 
 int numero_connessioni = 0;
 int numero_partite = 0;
@@ -18,16 +19,14 @@ char *msg2 = "disconnesione";
 //ogni gioco deve sempre avere un proprietario in qualsiasi momento
 //GIOCATORE* Giocatori[MAX_GIOCATORI]; verrà trattata come una pseudo-coda.
 
-void aggiorna_numero_connessioni(int * socket_nuovo){
+void aggiorna_numero_connessioni(int  socket_nuovo){
     pthread_mutex_lock(&lock);
 
     if(numero_connessioni>=MAX_GIOCATORI){
         perror("numero max giocatori superato");
-        if(socket_nuovo!=NULL){
-            send(*socket_nuovo,msg,strlen(msg),0);
-            close(*socket_nuovo);
-            free(socket_nuovo);
-        }
+        send(socket_nuovo,msg,strlen(msg),0);
+        close(socket_nuovo);
+    
         //Se tenta di connettersi un nono giocatore esso dovrà aspettare
         //li inviamo un messaggio : numero max di giocatori raggiunto.
     }else{
@@ -38,17 +37,20 @@ void aggiorna_numero_connessioni(int * socket_nuovo){
     pthread_mutex_unlock(&lock);
 }
 
-void queue_add(GIOCATORE*giocatore_add){
+bool queue_add(GIOCATORE*giocatore_add){
 	pthread_mutex_lock(&playerListLock);
     bool trovato = false;
 	for(int i=0; i < MAX_GIOCATORI; ++i){
 		if(!Giocatori[i] && !trovato){
             trovato = true;
 			Giocatori[i] = giocatore_add;
+    
+            Giocatori[i]->id = i; 
 		}
 	}
 
 	pthread_mutex_unlock(&playerListLock);
+    return trovato;
 }
 
 
@@ -80,9 +82,7 @@ void queue_remove(int id){
 void *handle_client(void *arg) {
     char buffer[BUFFER_SIZE];
     int leave_flag = 0;
-    int *socket_nuovo = (int *)arg;
-    int socket_fd = *socket_nuovo;
-    
+    int socket_fd = *(int *)arg;
     printf("Nuovo client connesso\n");
     fflush(stdout);
 
@@ -90,11 +90,10 @@ void *handle_client(void *arg) {
     if (!nuovo_giocatore) {
         fprintf(stderr, "Errore allocazione memoria giocatore\n");
         close(socket_fd);
-        free(socket_nuovo);
         pthread_exit(NULL);
     }
 
-    nuovo_giocatore->socket = socket_nuovo;
+    nuovo_giocatore->socket = socket_fd;
     nuovo_giocatore->id = numero_connessioni;
 
     int size = read(socket_fd, buffer, sizeof(buffer) - 1);
@@ -151,39 +150,99 @@ void *handle_client(void *arg) {
             // Invia "1" al client per indicare il successo
             const char *success_msg = "1";
             send(socket_fd, success_msg, strlen(success_msg), 0);
+            printf("Giocatore %s connesso con ID %d\n", nuovo_giocatore->nome, nuovo_giocatore->id);
+            fflush(stdout);
+            // Avvia il thread per controllare il router
+            pthread_t router_thread;
+            pthread_create(&router_thread, NULL, checkRouterThread, nuovo_giocatore);
+            //cosa fa detach?
+            // detach permette al thread di liberare le risorse automaticamente quando termina
+            pthread_detach(router_thread); // Detach per liberare risorse automaticamente
+            
+            //thread per gestire eventuali disconnessioni
+            pthread_t disconnect_thread;
+            pthread_create(&disconnect_thread, NULL, handle_close, nuovo_giocatore);
+            pthread_detach(disconnect_thread); // Detach per liberare risorse automaticamente
+            return NULL;
+
+            
         } else {
             // Invia "0" al client per indicare un errore
             const char *error_msg = "0";
             send(socket_fd, error_msg, strlen(error_msg), 0);
         }
 
-        // Main loop (attualmente vuoto)
-        // ...dopo la registrazione...
-        while (!leave_flag) {
-            int size = read(socket_fd, buffer, sizeof(buffer) - 1);
-            if (size <= 0) {
-                leave_flag = 1;
-                break;
-            }
-            buffer[size] = '\0';
-            checkRouter(buffer, nuovo_giocatore, socket_nuovo, &leave_flag);
-            
-        }
+        
+        
     }
 
-    // Pulizia finale
-    const char *msg2 = "Disconnessione effettuata.\n";
-    send(socket_fd, msg2, strlen(msg2), 0);
-    close(socket_fd);
-    free(socket_nuovo);
-    queue_remove(nuovo_giocatore->id);
-    free(nuovo_giocatore);
-    
-    pthread_detach(pthread_self());
     return NULL;
 }
 
-void checkRouter(char* buffer, GIOCATORE*nuovo_giocatore, int *socket_nuovo, int *leave_flag){
+void *handle_close(void *arg) {
+    GIOCATORE *giocatore = (GIOCATORE *)arg;
+
+    while (1) {
+        // Prepara il set di file descriptor da monitorare con select
+        fd_set fds;
+        FD_ZERO(&fds);
+        FD_SET(giocatore->socket, &fds); // Monitora il client
+
+        struct timeval timeout = {1, 0}; // Timeout di 1 secondo
+
+        int result = select(giocatore->socket + 1, &fds, NULL, NULL, &timeout); // Aspetta fino a 1 secondo per vedere se il socket e' pronto per leggere qualcosa
+        if (result < 0) {  // Errore
+            perror("select error");
+            break;
+        }
+
+        if (result > 0 && FD_ISSET(giocatore->socket, &fds)) { // Il socket e' pronto
+            char buf;
+            int n = recv(giocatore->socket, &buf, 1, MSG_PEEK); // Legge i byte senza consumarli
+
+            if (n <= 0) { // Il socket e' stato chiuso
+                printf("⚠️ Client %s disconnesso (monitor)\n", giocatore->nome);
+                remove_game_by_player_id(giocatore->id);
+                remove_request_by_player(giocatore);
+                queue_remove(giocatore->id);
+                
+                
+                break;
+            }
+        }
+
+    }
+    return NULL;
+}
+
+
+// Funzione per controllare il router e gestire le richieste
+void * checkRouterThread(void *arg) {
+    GIOCATORE *nuovo_giocatore = (GIOCATORE *)arg;
+
+    if(nuovo_giocatore == NULL) {
+        return NULL; 
+    }
+    char buffer[BUFFER_SIZE];
+    int leave_flag = 0;
+    int socket_fd = nuovo_giocatore->socket;
+    printf("Thread di controllo router avviato per il giocatore %s\n", nuovo_giocatore->nome);
+    fflush(stdout);
+    // Inizializza il buffer
+    memset(buffer, 0, sizeof(buffer));
+    while (!leave_flag) {
+        int size = read(socket_fd, buffer, BUFFER_SIZE - 1);
+
+        if (size <= 0) {
+            leave_flag = 1;
+            break;
+        }
+        buffer[size] = '\0';
+        checkRouter(buffer, nuovo_giocatore, socket_fd, &leave_flag);
+    }
+    return NULL; // Termina il thread
+}
+void checkRouter(char* buffer, GIOCATORE*nuovo_giocatore, int socket_nuovo, int *leave_flag){
         
     cJSON *json = cJSON_Parse(buffer);
         if (!json) return;
@@ -207,7 +266,39 @@ void checkRouter(char* buffer, GIOCATORE*nuovo_giocatore, int *socket_nuovo, int
         if (strcmp(path->valuestring, "/close") == 0) {
             printf("Richiesta di disconnessione\n");
             remove_game_by_player_id(nuovo_giocatore->id);
+            remove_request_by_player(nuovo_giocatore);
+            queue_remove(nuovo_giocatore->id);
             *leave_flag = 1;
+        }
+        if(strcmp(path->valuestring, "/add_request") == 0) {
+            //body è un json con id della partita
+            printf("Richiesta di aggiunta a una partita ricevuta\n");
+            cJSON *id_item = cJSON_GetObjectItem(body, "id");
+            if (id_item && cJSON_IsNumber(id_item)) {
+                int id_partita = id_item->valueint;
+                printf("ID partita: %d\n", id_partita);
+                // Aggiungi la richiesta alla partita
+                aggiungi_richiesta(id_partita, nuovo_giocatore);
+            } else {
+                printf("Il campo 'id' non è presente o non è un numero.\n");
+                *leave_flag = 1; // Indica un errore
+            }
+        }
+        if(strcmp(path->valuestring, "/remove_request") == 0) {
+            printf("Richiesta di rimozione da una partita ricevuta\n");
+            cJSON *id_item = cJSON_GetObjectItem(body, "id");
+            if (id_item && cJSON_IsNumber(id_item)) {
+                int id_partita = id_item->valueint;
+                printf("ID partita: %d\n", id_partita);
+                // Rimuovi la richiesta dalla partita
+                rimuovi_richiesta(id_partita, nuovo_giocatore); 
+            } else {
+                printf("Il campo 'id' non è presente o non è un numero.\n");
+                *leave_flag = 1; // Indica un errore
+            }
+        }
+        if(strcmp(path->valuestring, "/handle_request") == 0) {
+           
         }
         // ...altre richieste...
         cJSON_Delete(json);
@@ -263,17 +354,17 @@ int main(){
         }else{
             printf("Aggiungo connessione\n");
             fflush(stdout);
-            aggiorna_numero_connessioni(socket_nuovo);
+            aggiorna_numero_connessioni(*socket_nuovo);
         }
         //visto che si aggiorna una variabile che potrebbe essere usata da diversi thread occuore un mutex
 
         pthread_t thread_id;
-        if (pthread_create(&thread_id, NULL, handle_client, socket_nuovo) != 0) {
-            perror("errore_pthread_create");
-            send(*socket_nuovo,msg1,strlen(msg1),0);
-            close(*socket_nuovo);
-            free(socket_nuovo);
-        } 
+        // Creazione del thread per gestire il client
+        pthread_create(&thread_id, NULL, handle_client, socket_nuovo);
+        //controllo se thread_id è stato creato correttamente
+        pthread_detach(thread_id); // Detach per liberare risorse automaticamente
+        
+        
     }
 
         close(fd);

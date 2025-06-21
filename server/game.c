@@ -19,17 +19,6 @@ void aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario){
         return;
     }
 
-    //controllo che il giocatore non sia già in una partita
-    for(int i=0; i < MAX_GAME; ++i){
-        if(Partite[i]){
-            if(Partite[i]->giocatoreParticipante[0] && Partite[i]->giocatoreParticipante[0]->id == giocatoreProprietario->id){
-                // MODIFICA: Sostituito perror con fprintf
-                fprintf(stderr, "giocatore già in una partita\n");
-                pthread_mutex_unlock(&gameListLock);
-                return;
-            }
-        }
-    }
 
     int i;
     for( i=0; i < MAX_GAME; i++){
@@ -37,8 +26,14 @@ void aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario){
             Partite[i]=nuova_partita;
             Partite[i]->giocatoreParticipante[0] = giocatoreProprietario;
             Partite[i]->id=numero_partite;
+            Partite[i]->numero_richieste = 0; // MODIFICA: Inizializza numero_richieste
+            Partite[i]->richieste[0] = NULL; // MODIFICA: Inizializza richieste
+            //a cosa serve? il semaforo serve per sincronizzare l'accesso alla partita perchè può essere accessibile da più thread
+            //con sem_init si inizializza il semaforo uno ad uno i parametri sono: il semaforo, il valore iniziale (0 o 1), e il valore di condivisione (0 per processo, 1 per thread)
+            sem_init(&Partite[i]->semaforo, 0, 1); // MODIFICA: Inizializza semaforo
             Partite[i]->turno=0;
-            Partite[i]->esito=0;
+            Partite[i]->esito= NESSUN_ESITO;
+            Partite[i]->stato_partita = IN_ATTESA; 
             break;
             
         }
@@ -73,10 +68,16 @@ void remove_game_by_player_id(int id) {
     pthread_mutex_lock(&gameListLock);
     for (int i = 0; i < MAX_GAME; ++i) {
         if (Partite[i] && Partite[i]->giocatoreParticipante[0] && Partite[i]->giocatoreParticipante[0]->id == id) {
+            for(int j = 0; j < MAX_GIOCATORI; j++) {
+                if(Partite[i]->richieste[j]) {
+                    free(Partite[i]->richieste[j]);
+                }
+            }
+            
+            sem_destroy(&Partite[i]->semaforo);
             free(Partite[i]);
             Partite[i] = NULL;
             numero_partite--; // MODIFICA: Aggiunto decremento mancante
-            break;
         }
     }
     pthread_mutex_unlock(&gameListLock);
@@ -99,8 +100,184 @@ void new_game(int*leave_flag,char*buffer,GIOCATORE*giocatore){
     printf("Partita creata con id: %d\n",nuova_partita->id);
     fflush(stdout);
     printf("Giocatore %s ha creato una partita\n",giocatore->nome);
-    GameStartPlayer1(leave_flag,buffer,nuova_partita);
 }
+
+void send_success_message(int success, int socket, const char* message){
+    cJSON *response = cJSON_CreateObject();
+
+    cJSON_AddNumberToObject(response, "success", success);
+    cJSON_AddStringToObject(response, "message", message);
+    char *json_string = cJSON_PrintUnformatted(response);
+    if(json_string == NULL) {
+        printf("Errore nella creazione della risposta JSON\n");
+        return;
+    }
+
+    //invia risposta al client
+    int bytes_sent = send(socket, json_string, strlen(json_string), 0);
+    if(bytes_sent < 0) {
+        printf("Errore nell'invio della risposta JSON\n");
+    } else {
+        printf("Risposta JSON inviata: %s\n", json_string);
+    }
+    cJSON_Delete(response); // Libera la memoria allocata per la risposta
+    
+}
+void aggiungi_richiesta(int id_partita, GIOCATORE* giocatore) {
+    pthread_mutex_lock(&lock);
+    pthread_mutex_lock(&gameListLock);
+    
+    // Controllo se id_partita è valido
+    if(id_partita < 0 || id_partita >= MAX_GAME || Partite[id_partita] == NULL) {
+        printf("ID partita non valido: %d\n", id_partita);
+        send_success_message(0, giocatore->socket, "Partita non trovata");
+        pthread_mutex_unlock(&gameListLock);
+        pthread_mutex_unlock(&lock);
+        return;
+    }
+
+    GAME* partita = Partite[id_partita];
+    
+    // Controllo se il numero di richieste supera il massimo
+    if(partita->numero_richieste >= MAX_GIOCATORI) {
+        printf("Numero massimo di richieste raggiunto per la partita %d\n", id_partita);
+        send_success_message(0, giocatore->socket, "Numero massimo di richieste raggiunto");
+        pthread_mutex_unlock(&gameListLock);
+        pthread_mutex_unlock(&lock);
+        return;
+    }
+
+    // Controllo se il giocatore ha già una richiesta in questa partita
+    for(int i = 0; i < MAX_GIOCATORI; i++) {
+        if(partita->richieste[i] && partita->richieste[i]->giocatore == giocatore) {
+            printf("Il giocatore %s ha già una richiesta in questa partita\n", giocatore->nome);
+            send_success_message(0, giocatore->socket, "Richiesta già esistente");
+            pthread_mutex_unlock(&gameListLock);
+            pthread_mutex_unlock(&lock);
+            return;
+        }
+    }
+    
+    // Controllo se la partita è in corso
+    if(partita->stato_partita == IN_CORSO) {
+        printf("La partita %d è già in corso, non è possibile aggiungere richieste\n", id_partita);
+        send_success_message(0, giocatore->socket, "Partita già in corso");
+        pthread_mutex_unlock(&gameListLock);
+        pthread_mutex_unlock(&lock);
+        return;
+    }
+   
+    RICHIESTA *richiesta = crea_richiesta(giocatore);
+    bool slot_trovato = false;
+    
+    for(int i = 0; i < MAX_GIOCATORI; i++) {
+        if(partita->richieste[i] == NULL) {
+            partita->richieste[i] = richiesta;
+            partita->numero_richieste++;
+            send_success_message(1, giocatore->socket, "Richiesta aggiunta con successo");
+            // Invia richiesta al proprietario della partita
+            invia_richiesta_proprietario(partita, giocatore);
+            slot_trovato = true;
+            break;
+        }
+    }
+    
+    // Gestisce il caso in cui non si trova uno slot libero
+    if(!slot_trovato) {
+        printf("Impossibile aggiungere la richiesta: nessuno slot disponibile\n");
+        send_success_message(0, giocatore->socket, "Errore interno: nessuno slot disponibile");
+        elimina_richiesta(richiesta); // Libera la memoria
+    }
+    
+    pthread_mutex_unlock(&gameListLock);
+    pthread_mutex_unlock(&lock);
+}
+
+void invia_richiesta_proprietario(GAME* partita, GIOCATORE* giocatore_richiedente) {
+    if(partita == NULL || giocatore_richiedente == NULL) {
+        printf("Parametri non validi per l'invio della richiesta\n");
+        return;
+    }
+    
+    // Invia la richiesta al proprietario della partita
+    if(partita->giocatoreParticipante[0] != NULL) {
+        cJSON *request_json = cJSON_CreateObject();
+        cJSON_AddStringToObject(request_json, "path", "/new_request");
+        cJSON_AddNumberToObject(request_json, "game_id", partita->id);
+        cJSON_AddNumberToObject(request_json, "player_id", giocatore_richiedente->id);
+        cJSON_AddStringToObject(request_json, "player_name", giocatore_richiedente->nome);
+
+        char *msg = cJSON_PrintUnformatted(request_json);
+        
+        //Controllo se il socket è valido prima dell'invio
+        if(partita->giocatoreParticipante[0]->socket > 0) {
+            send(partita->giocatoreParticipante[0]->socket, msg, strlen(msg), 0);
+            printf("Richiesta inviata al proprietario della partita %d\n", partita->id);
+        } else {
+            printf("Socket del proprietario non valido\n");
+        }
+        
+        free(msg);
+        cJSON_Delete(request_json);
+    } else {
+        printf("Proprietario della partita non trovato\n");
+    }
+}
+
+void rimuovi_richiesta(int id_partita, GIOCATORE* giocatore) {
+    pthread_mutex_lock(&lock);
+    pthread_mutex_lock(&gameListLock);
+    
+    // Controllo se id_partita è valido
+    if(id_partita < 0 || id_partita >= MAX_GAME || Partite[id_partita] == NULL) {
+        printf("ID partita non valido: %d\n", id_partita);
+        send_success_message(0, giocatore->socket, "Partita non trovata");
+        pthread_mutex_unlock(&gameListLock);
+        pthread_mutex_unlock(&lock);
+        return;
+    }
+
+    GAME* partita = Partite[id_partita];
+    
+    // Trova e rimuovi la richiesta del giocatore
+    bool richiesta_trovata = false;
+    for(int i = 0; i < MAX_GIOCATORI; i++) {
+        if(partita->richieste[i] && partita->richieste[i]->giocatore == giocatore) {
+            elimina_richiesta(partita->richieste[i]);
+            partita->richieste[i] = NULL;
+            partita->numero_richieste--;
+            printf("Richiesta rimossa per il giocatore %s dalla partita %d\n", giocatore->nome, id_partita);
+            send_success_message(1, giocatore->socket, "Richiesta rimossa con successo");
+            richiesta_trovata = true;
+
+            //Invia messaggio al proprietario solo se esiste e ha socket valido
+            if(partita->giocatoreParticipante[0] != NULL && 
+               partita->giocatoreParticipante[0]->socket > 0) {
+                cJSON *response_json = cJSON_CreateObject();
+                cJSON_AddStringToObject(response_json, "path", "/remove_request");
+                cJSON_AddNumberToObject(response_json, "game_id", id_partita);
+                cJSON_AddNumberToObject(response_json, "player_id", giocatore->id);
+                char *msg = cJSON_PrintUnformatted(response_json);
+                
+                send(partita->giocatoreParticipante[0]->socket, msg, strlen(msg), 0);
+                
+                //Libera la memoria allocata
+                free(msg);
+                cJSON_Delete(response_json);
+            }
+            break;
+        }
+    }
+    
+    if (!richiesta_trovata) {
+        printf("Nessuna richiesta trovata per il giocatore %s nella partita %d\n", giocatore->nome, id_partita);
+        send_success_message(0, giocatore->socket, "Richiesta non trovata");
+    }
+    
+    pthread_mutex_unlock(&gameListLock);
+    pthread_mutex_unlock(&lock);
+}
+// fin qui tutto va bene
 
 // MODIFICA: Aggiunto parametro GIOCATORE per poter inviare risposta
 void gestioneRichiestaJSONuscita(cJSON*json,int*leave_flag,int*leave_game,GIOCATORE*giocatore){
@@ -126,7 +303,7 @@ void gestioneRichiestaJSONuscita(cJSON*json,int*leave_flag,int*leave_game,GIOCAT
                     cJSON_AddNumberToObject(response, "success", 1);
                     cJSON_AddStringToObject(response, "message", "Uscita dalla partita confermata");
                     char *msg = cJSON_PrintUnformatted(response);
-                    send(*(giocatore->socket), msg, strlen(msg), 0);
+                    send(giocatore->socket, msg, strlen(msg), 0);
                     cJSON_Delete(response);
                     free(msg);
                 }
@@ -148,7 +325,7 @@ void GameStartPlayer1(int*leave_flag,char*buffer,GAME*nuova_partita){
     
     while(!(*leave_flag) && !(leave_game) && !has_player2){
     
-        json = read_with_timeout(*(nuova_partita->giocatoreParticipante[0]->socket),buffer,1024,10,&leave_game);
+        json = read_with_timeout(nuova_partita->giocatoreParticipante[0]->socket,buffer,1024,10,&leave_game);
         // MODIFICA: Aggiunto parametro giocatore per poter inviare risposta
         gestioneRichiestaJSONuscita(json,leave_flag,&leave_game,nuova_partita->giocatoreParticipante[0]);
         
@@ -260,7 +437,7 @@ void sendJoinGame(GIOCATORE*giocatore2, GAME* partita){
     cJSON_AddItemToObject(root, "game_data", game_data);
 
     char *msg = cJSON_PrintUnformatted(root);
-    send(*(partita->giocatoreParticipante[0]->socket), msg, strlen(msg), 0);
+    send(partita->giocatoreParticipante[0]->socket, msg, strlen(msg), 0);
     cJSON_Delete(root);
     free(msg);
     printf("Inviato messaggio di unione partita al giocatore 1");
@@ -295,7 +472,7 @@ void sendSuccessNewGame(int success, GIOCATORE*giocatore, int id_partita){
     cJSON_AddNumberToObject(root, "success", success);
     cJSON_AddNumberToObject(root, "id_partita", id_partita);
     char *msg = cJSON_PrintUnformatted(root);
-    send(*(giocatore->socket), msg, strlen(msg), 0);
+    send(giocatore->socket, msg, strlen(msg), 0);
     cJSON_Delete(root);
     free(msg);
 }

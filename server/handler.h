@@ -16,15 +16,14 @@
 #include <stdbool.h>
 #include "player.h"
 #include "game.h"
-#include "server.h"
+
 void crea_json(cJSON *root,int id,char*nome);
 
 bool partita_in_corso(GAME *partita);
 
-void handlerInviaGames(int *socket_nuovo);
+void handlerInviaGames(int socket_nuovo);
 
 void joinLobby(int*leave_flag,cJSON*body,GIOCATORE*nuovo_giocatore);
-
 
 GAME* searchPartitaById(int id);
 
