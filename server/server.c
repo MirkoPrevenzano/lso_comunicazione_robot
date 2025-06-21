@@ -19,32 +19,22 @@ char *msg2 = "disconnesione";
 //ogni gioco deve sempre avere un proprietario in qualsiasi momento
 //GIOCATORE* Giocatori[MAX_GIOCATORI]; verrà trattata come una pseudo-coda.
 
-void aggiorna_numero_connessioni(int  socket_nuovo){
-    pthread_mutex_lock(&lock);
 
-    if(numero_connessioni>=MAX_GIOCATORI){
-        perror("numero max giocatori superato");
-        send(socket_nuovo,msg,strlen(msg),0);
-        close(socket_nuovo);
-    
-        //Se tenta di connettersi un nono giocatore esso dovrà aspettare
-        //li inviamo un messaggio : numero max di giocatori raggiunto.
-    }else{
-        numero_connessioni++;
-        printf("Connessione accettata, numero connessioni: %d\n", numero_connessioni);
-        fflush(stdout);
-    }
-    pthread_mutex_unlock(&lock);
-}
 
 bool queue_add(GIOCATORE*giocatore_add){
+    //aggiunto controllo per evitare che giocatore_add sia NULL
+    if (!giocatore_add) {
+        printf("Errore: giocatore_add è NULL\n");
+        return false;
+    }
+    
 	pthread_mutex_lock(&playerListLock);
     bool trovato = false;
 	for(int i=0; i < MAX_GIOCATORI; ++i){
 		if(!Giocatori[i] && !trovato){
             trovato = true;
+            numero_connessioni++;
 			Giocatori[i] = giocatore_add;
-    
             Giocatori[i]->id = i; 
 		}
 	}
@@ -53,9 +43,9 @@ bool queue_add(GIOCATORE*giocatore_add){
     return trovato;
 }
 
-
+//l'utilizzo di due mutex può causare deadlock  se in un altro thread si cerca di accedere a Giocatori e Partite contemporaneamente
+//uso playerListLock anche per numero_connessioni
 void queue_remove(int id){
-	pthread_mutex_lock(&lock);
     pthread_mutex_lock(&playerListLock);
     bool trovato = false;
 	for(int i=0; i < MAX_GIOCATORI; ++i){
@@ -66,7 +56,6 @@ void queue_remove(int id){
 			}
 		}
 	}
-    pthread_mutex_unlock(&playerListLock);
     if(trovato){
         numero_connessioni--;
         printf("Connessione chiusa, numero connessioni: %d\n", numero_connessioni);
@@ -75,14 +64,20 @@ void queue_remove(int id){
     else
         printf("Giocatore %d non trovato\n", id);
 
-    pthread_mutex_unlock(&lock);
+    pthread_mutex_unlock(&playerListLock);
+
 }
 
 
 void *handle_client(void *arg) {
     char buffer[BUFFER_SIZE];
     int leave_flag = 0;
-    int socket_fd = *(int *)arg;
+    int *socket_ptr = (int *)arg;
+    int socket_fd = *socket_ptr;
+    
+    // ✅ LIBERA SUBITO il socket pointer
+    free(socket_ptr);
+    
     printf("Nuovo client connesso\n");
     fflush(stdout);
 
@@ -93,8 +88,10 @@ void *handle_client(void *arg) {
         pthread_exit(NULL);
     }
 
+    // Inizializza il nuovo giocatore
+    memset(nuovo_giocatore, 0, sizeof(GIOCATORE));
     nuovo_giocatore->socket = socket_fd;
-    nuovo_giocatore->id = numero_connessioni;
+    nuovo_giocatore->id = -1; // ID non valido inizialmente
 
     int size = read(socket_fd, buffer, sizeof(buffer) - 1);
     if (size <= 0) {
@@ -145,7 +142,13 @@ void *handle_client(void *arg) {
 
         if (!leave_flag) {
             // Aggiungi il giocatore alla coda
-            queue_add(nuovo_giocatore);
+            bool added = queue_add(nuovo_giocatore);
+            if (!added) {
+                printf("Server pieno - impossibile aggiungere giocatore\n");
+                close(socket_fd);
+                free(nuovo_giocatore);
+                pthread_exit(NULL);
+            }
         
             // Invia id del giocatore al client
             cJSON *response = cJSON_CreateObject();
@@ -154,6 +157,9 @@ void *handle_client(void *arg) {
             send(socket_fd, response_str, strlen(response_str), 0);
             printf("Giocatore %s connesso con ID %d\n", nuovo_giocatore->nome, nuovo_giocatore->id);
             fflush(stdout);
+
+            free(response_str);
+            cJSON_Delete(response);
             // Avvia il thread per controllare il router
             pthread_t router_thread;
             pthread_create(&router_thread, NULL, checkRouterThread, nuovo_giocatore);
@@ -253,10 +259,19 @@ void checkRouter(char* buffer, GIOCATORE*nuovo_giocatore, int socket_nuovo, int 
         cJSON *path = cJSON_GetObjectItem(json, "path");
         cJSON *body = cJSON_GetObjectItem(json, "body");
 
+        //aggiungi controllo per path se è vuoto
+        if (!path || !cJSON_IsString(path)) {
+            printf("Campo 'path' mancante o non valido\n");
+            cJSON_Delete(json);
+            return;
+        }
+
         //questo primo path è restituisce al client la lista dei giochi in attesa
         if (strcmp(path->valuestring, "/waiting_games") == 0) {
             printf("Richiesta di giochi in attesa ricevuta\n");
+            pthread_mutex_lock(&gameListLock);
             handlerInviaGames(socket_nuovo);
+            pthread_mutex_unlock(&gameListLock);
             //il server rimane in attesa per la scelta della lobby oppure eventuale uscita
         }
         if(strcmp(path->valuestring, "/join_game") == 0) {
@@ -266,13 +281,6 @@ void checkRouter(char* buffer, GIOCATORE*nuovo_giocatore, int socket_nuovo, int 
         if(strcmp(path->valuestring, "/new_game") == 0) {
             printf("Richiesta di creazione partita ricevuta\n");
             new_game(leave_flag,buffer,nuovo_giocatore);
-        }
-        if (strcmp(path->valuestring, "/close") == 0) {
-            printf("Richiesta di disconnessione\n");
-            remove_game_by_player_id(nuovo_giocatore->id);
-            remove_request_by_player(nuovo_giocatore);
-            queue_remove(nuovo_giocatore->id);
-            *leave_flag = 1;
         }
         if(strcmp(path->valuestring, "/add_request") == 0) {
             //body è un json con id della partita
@@ -377,11 +385,9 @@ int main(){
             perror("errore_accept");
             free(socket_nuovo);
             continue;
-        }else{
-            printf("Aggiungo connessione\n");
-            fflush(stdout);
-            aggiorna_numero_connessioni(*socket_nuovo);
         }
+        printf("Connessione accettata\n");
+        fflush(stdout);
         //visto che si aggiorna una variabile che potrebbe essere usata da diversi thread occuore un mutex
 
         pthread_t thread_id;

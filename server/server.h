@@ -45,7 +45,6 @@ extern pthread_mutex_t gameListLock;
 //un mutex per l'accesso alla lista dei giocatori 
 //uso di possibili liste linkate
 
-void aggiorna_numero_connessioni(int socket_nuovo);
 
 bool queue_add(GIOCATORE*giocatore_add);
 
