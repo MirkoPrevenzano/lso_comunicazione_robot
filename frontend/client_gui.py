@@ -2,9 +2,10 @@ import tkinter as tk
 from tkinter import ttk
 from login_page import LoginPage
 from home_page import HomePage
-from client_network import send_to_server
+from client_network import send_to_server, connect_to_server, close_connections
 from game_page import GamePage
 from attend_page import AttendPage
+import atexit
 
 FONT_FAMILY = "Segoe UI"
 
@@ -62,5 +63,14 @@ class MainApp(tk.Tk):
 
 
 if __name__ == "__main__":
+    # Stabilisci la connessione principale
+    if not connect_to_server():
+        print("Impossibile connettersi al server")
+        exit(1)
+    
+    # Registra la chiusura delle connessioni all'uscita
+    atexit.register(close_connections)
+    
+    # Avvia l'applicazione GUI
     app = MainApp()
     app.mainloop()

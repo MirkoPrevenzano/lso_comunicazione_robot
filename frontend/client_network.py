@@ -1,30 +1,111 @@
 import socket
 import json
+import select
+import time
 
-s= socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-print("Tentativo di connessione al server...")
-s.connect(("127.0.0.1", 8080))
-print("Connessione stabilita!")
+class SelectBasedClient:
+    def __init__(self):
+        self.socket = None
+        self.connected = False
+        
+    def connect(self):
+        """Stabilisce la connessione principale"""
+        try:
+            print("Tentativo di connessione al server...")
+            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.socket.connect(("127.0.0.1", 8080))
+            self.connected = True
+            print("Connessione stabilita!")
+        except Exception as e:
+            print(f"Errore connessione: {e}")
+            self.connected = False
+            
+    def send_to_server(self, path, body):
+        """Invia dati al server e attende risposta usando select"""
+        if not self.connected or not self.socket:
+            raise ConnectionError("Non connesso al server")
+            
+        try:
+            messaggio = {
+                "path": path,
+                "body": json.dumps(body)
+            }
+            
+            json_data = json.dumps(messaggio)
+            print(f"📤 Invio: {json_data}")
+            self.socket.sendall(json_data.encode())
+            
+            print("📥 Attendo risposta...")
+            # Usa select per attendere la risposta con timeout
+            ready, _, _ = select.select([self.socket], [], [], 5.0)  # timeout 5 secondi
+            
+            if ready:
+                risposta = self.socket.recv(4096).decode()
+                print(f"📥 Ricevuta: {risposta}")
+                return risposta
+            else:
+                raise TimeoutError("Timeout in attesa della risposta dal server")
+                
+        except Exception as e:
+            print(f"❌ Errore invio: {type(e).__name__}: {e}")
+            self.connected = False
+            raise
+                
+    def check_server_messages(self):
+        """Controlla se ci sono messaggi dal server (non bloccante)"""
+        if not self.connected or not self.socket:
+            return None
+            
+        try:
+            # Usa select con timeout 0 per controllo non bloccante
+            ready, _, _ = select.select([self.socket], [], [], 0)
+            
+            if ready:
+                data = self.socket.recv(4096).decode()
+                if not data:
+                    return None
+                return data
+            else:
+                return None  # Nessun dato disponibile
+                
+        except Exception as e:
+            print(f"Errore ricezione: {e}")
+            return None
+            
+    def close(self):
+        """Chiude la connessione"""
+        self.connected = False
+        if self.socket:
+            self.socket.close()
+
+# Nessuna istanza globale - ogni chiamata crea la sua connessione
+_client = None
+
+def connect_to_server():
+    """Stabilisce la connessione al server"""
+    global _client
+    if _client is None:
+        _client = SelectBasedClient()
+    _client.connect()
+    return _client.connected
+
 def send_to_server(path, body):
-    messaggio = {
-        "path": path,
-        "body": json.dumps(body)
-    }
-    
-    json_data = json.dumps(messaggio)
-    print(json_data)
-    s.sendall(json_data.encode())
-    risposta = s.recv(4096).decode()
-    return risposta
+    """Funzione di compatibilità per invio"""
+    global _client
+    if _client is None:
+        raise ConnectionError("Client non inizializzato. Chiama connect_to_server() prima.")
+    return _client.send_to_server(path, body)
 
 def receive_from_server():
-    s.setblocking(False)  # Modalità bloccante: aspetta finché arrivano dati
-    try:
-        data = s.recv(4096).decode()
-        if not data:
-            return None
-        return data
-    except Exception as e:
+    """Funzione di compatibilità per ricezione (safe)"""
+    global _client
+    if _client is None:
         return None
-    finally:
-        s.setblocking(True)  # Torna alla modalità non bloccante
+    return _client.check_server_messages()
+
+def close_connections():
+    """Chiude la connessione"""
+    global _client
+    if _client is not None:
+        _client.close()
+        _client = None

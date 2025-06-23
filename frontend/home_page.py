@@ -1,11 +1,9 @@
 import json
 import tkinter as tk
 from tkinter import ttk
-import threading
-import queue
 import time
 
-from client_network import send_to_server, receive_from_server
+from client_network import send_to_server, receive_from_server, connect_to_server, close_connections
 
 # Costanti per stili
 CARD_FRAME_STYLE = "Card.TFrame"
@@ -29,10 +27,9 @@ class HomePage(tk.Frame):
         self.received_requests = []
         self.sent_requests = []
         
-        # Thread e queue per comunicazioni server
-        self.server_thread = None
-        self.server_queue = queue.Queue()
-        self.thread_running = False
+        # Variabili per il polling del server
+        self.listener_active = False
+        self.server_polling_id = None
         
         # Configura il layout a griglia della pagina principale
         self.rowconfigure(0, weight=0)  # Navbar - fisso
@@ -108,80 +105,74 @@ class HomePage(tk.Frame):
         self.scroll_frame = ttk.Frame(self.content_frame, style="TFrame")
         self.scroll_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=5)
         
-        # Canvas e Scrollbar per il contenuto con sfondo nero
+        # TEMPORANEO: Usa un Frame semplice invece del Canvas per debug
+        print("🔧 DEBUG: Creazione layout semplificato senza Canvas...")
+        self.content_container = ttk.Frame(self.scroll_frame, style="TFrame")
+        self.content_container.pack(fill="both", expand=True)
+        
+        # Commentiamo il Canvas per ora
         self.canvas = tk.Canvas(self.scroll_frame, highlightthickness=0, bg="black", bd=0, height=250)
         self.scrollbar = ttk.Scrollbar(self.scroll_frame, orient="vertical", command=self.canvas.yview)
         self.content_container = ttk.Frame(self.canvas, style="TFrame")
         
-        # Configura la scrollbar
+        # # Configura la scrollbar
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
         
-        # Pack scrollbar e canvas - mostra sempre la scrollbar
+        # # Pack scrollbar e canvas - mostra sempre la scrollbar
         self.scrollbar.pack(side="right", fill="y")
         self.canvas.pack(side="left", fill="both", expand=True)
         
-        # Crea la finestra nel canvas
+        # # Crea la finestra nel canvas
         self.canvas_window = self.canvas.create_window((0, 0), window=self.content_container, anchor="nw")
         
-        # Bind eventi per aggiornare la scrollregion
+        # # Bind eventi per aggiornare la scrollregion
         self.content_container.bind('<Configure>', self.on_frame_configure)
         self.canvas.bind('<Configure>', self.on_canvas_configure)
         
-        # Abilita lo scroll con la rotella del mouse
+        # # Abilita lo scroll con la rotella del mouse
         self.canvas.bind("<MouseWheel>", self.on_mousewheel)
 
         # Aggiorna lo stile del pulsante attivo
         self.update_button_styles()
 
     def start_server_listener(self):
-        """Avvia il thread per ascoltare il server"""
-        if self.server_thread and self.thread_running:
-            return  # Thread già in esecuzione
+        """Avvia il monitoraggio del server usando select (non-bloccante)"""
+        if self.listener_active:
+            return  # Listener già attivo
             
-        self.thread_running = True
-        self.server_thread = threading.Thread(target=self._server_listener_worker, daemon=True)
-        self.server_thread.start()
-        
-        # Avvia il processamento della queue nel thread principale
-        self.process_server_messages()
+        self.listener_active = True
+        self.poll_server_messages()
+        print("🔄 Server listener avviato (select-based)")
 
     def stop_server_listener(self):
-        """Ferma il thread del server"""
-        self.thread_running = False
-        if self.server_thread:
-            self.server_thread.join(timeout=1)
+        """Ferma il monitoraggio del server"""
+        self.listener_active = False
+        if self.server_polling_id:
+            self.after_cancel(self.server_polling_id)
+            self.server_polling_id = None
+        print("🛑 Server listener fermato")
 
-    def _server_listener_worker(self):
-        """Worker del thread che ascolta il server"""
-        while self.thread_running:
-            try:
-                response = receive_from_server()
-                if response:
-                    try:
-                        data = json.loads(response)
-                        # Invia il messaggio al thread principale tramite queue
-                        self.server_queue.put(data)
-                    except json.JSONDecodeError:
-                        print(f"Errore parsing JSON dal server: {response}")
-                else:
-                    # Nessun dato ricevuto, aspetta un po' prima di riprovare
-                    time.sleep(0.1)
-            except Exception as e:
-                print(f"Errore nel thread server listener: {e}")
-                time.sleep(1)  # Aspetta prima di riprovare
-
-    def process_server_messages(self):
-        """Processa i messaggi dal server nel thread principale"""
+    def poll_server_messages(self):
+        """Controlla periodicamente se ci sono messaggi dal server usando select"""
+        if not self.listener_active:
+            return
+            
         try:
-            while True:
-                data = self.server_queue.get_nowait()
-                self.handle_server_message(data)
-        except queue.Empty:
-            pass
+            # Simile al pattern C: controlla se ci sono dati dal server
+            response = receive_from_server()
+            if response:
+                try:
+                    data = json.loads(response)
+                    self.handle_server_message(data)
+                    print(f"📨 Messaggio server processato: {data.get('path', 'unknown')}")
+                except json.JSONDecodeError:
+                    print(f"❌ Errore parsing JSON dal server: {response}")
+        except Exception as e:
+            print(f"❌ Errore polling server: {type(e).__name__}: {e}")
         
-        # Continua a processare i messaggi
-        if self.thread_running:
-            self.after(100, self.process_server_messages)
+        # Programma il prossimo controllo (ogni 100ms, come il timeout nel codice C)
+        if self.listener_active:
+            self.server_polling_id = self.after(100, self.poll_server_messages)
 
     def handle_server_message(self, data):
         """Gestisce i messaggi ricevuti dal server"""
@@ -293,14 +284,13 @@ class HomePage(tk.Frame):
             self.update_sent_requests()
 
     def periodic_update_content(self):
-        """Aggiorna periodicamente SOLO le partite in attesa"""
+        """DISABILITATO COMPLETAMENTE per debug del segfault"""
+        print("🔄 Polling automatico completamente disabilitato per debug")
+        # Commentiamo tutto per testare
         self._content_after_id = self.after(3000, self.periodic_update_content)
-        
-        # SOLO le partite in attesa vengono aggiornate via polling
         if self.current_view == "waiting_games":
-            self.update_waiting_games()
-            print("🔄 Aggiornamento partite in attesa...")
-        # NON aggiornare più le richieste via polling
+             self.update_waiting_games()
+             print("🔄 Aggiornamento partite in attesa...")
 
     def stop_periodic_update_content(self):
         """Ferma l'aggiornamento periodico"""
@@ -313,36 +303,78 @@ class HomePage(tk.Frame):
         self.welcome_label.config(text=f"Benvenuto, {nickname}!")
         self.change_view(self.current_view)
         self.periodic_update_content()
-        # Avvia il thread di ascolto del server
+        # Avvia il polling del server
         self.start_server_listener()
 
+    def __del__(self):
+        """Cleanup quando l'oggetto viene distrutto"""
+        self.stop_server_listener()
+        self.stop_periodic_update_content()
+
     def clear_content(self):
-        """Pulisce il contenuto del container"""
-        for widget in self.content_container.winfo_children():
-            widget.destroy()
+        """Pulisce il contenuto del container con protezione"""
+        try:
+            if hasattr(self, 'content_container') and self.content_container.winfo_exists():
+                for widget in self.content_container.winfo_children():
+                    if widget.winfo_exists():
+                        widget.destroy()
+        except tk.TclError as e:
+            print(f"⚠️ Errore durante clear_content: {e}")
+        except Exception as e:
+            print(f"❌ Errore generico in clear_content: {e}")
 
     def update_waiting_games(self):
         """Aggiorna la lista delle partite in attesa"""
         try:
+            print("🔄 Richiesta partite in attesa...")
             games = send_to_server("/waiting_games", {})
+            print(f"🔄 Ricevuta risposta: {games}")
+            
             try:
-                print(games)
                 games = json.loads(games)
                 games = games.get("partite", [])
-            except Exception as e:
-                print("Errore parsing JSON:", e)
+                print(f"🔄 Partite parsate: {games}")
+                
+                # Limita il numero di partite per evitare overflow
+                if len(games) > 20:
+                    games = games[:20]
+                    print("⚠️ Limitato a 20 partite per sicurezza")
+                    
+            except json.JSONDecodeError as e:
+                print(f"❌ Errore parsing JSON: {e}")
                 games = []
-        except Exception as e:
-            print("Errore di connessione o BrokenPipe:", e)
+                
+        except ConnectionError as e:
+            print(f"❌ Errore di connessione: {e}")
             games = []
+            if hasattr(self, 'welcome_label'):
+                self.welcome_label.config(text="Errore di connessione al server", foreground="red")
+        except Exception as e:
+            print(f"❌ Errore generico: {type(e).__name__}: {e}")
+            games = []
+            if hasattr(self, 'welcome_label'):
+                self.welcome_label.config(text=f"Errore: {str(e)}", foreground="red")
 
-        self.clear_content()
-        if not games:
-            ttk.Label(self.content_container, text="Nessuna partita in attesa", style="TLabel").pack(pady=(10, 0))
-            return 
-        
-        for game in games:
-            self.add_waiting_game_widget(game)
+        # Aggiorna UI in modo sicuro
+        try:
+            self.clear_content()
+            
+            if not games:
+                if hasattr(self, 'content_container') and self.content_container.winfo_exists():
+                    ttk.Label(self.content_container, text="Nessuna partita in attesa", style="TLabel").pack(pady=(10, 0))
+                return 
+            
+            print(f"🔄 Creazione widget per {len(games)} partite...")
+            for i, game in enumerate(games):
+                print(f"🔄 Creazione widget {i+1}/{len(games)}: {game}")
+                self.add_waiting_game_widget(game)
+                
+            print("✅ Tutti i widget creati con successo")
+            
+        except Exception as e:
+            print(f"❌ Errore durante aggiornamento UI: {type(e).__name__}: {e}")
+            import traceback
+            traceback.print_exc()
 
     def update_received_requests(self):
         """Mostra la lista delle richieste ricevute (SOLO lista locale - NO polling)"""
@@ -367,17 +399,43 @@ class HomePage(tk.Frame):
             self.add_sent_request_widget(request)
 
     def add_waiting_game_widget(self, game):
-        """Aggiunge un widget per una partita in attesa"""
-        frame = ttk.Frame(self.content_container, style=CARD_FRAME_STYLE, relief="raised", borderwidth=1)
-        frame.pack(fill="x", padx=4, pady=2)
-        
-        info = f"ID: {game['id_partita']} | Giocatore: {game['proprietario']} | ⏳ In attesa"
-        label = ttk.Label(frame, text=info, style="TLabel")
-        label.pack(side="left", padx=10, pady=5)
-        
-        join_btn = ttk.Button(frame, text="Unisciti", style=ACCENT_BUTTON_STYLE,
-                             command=lambda gid=game['id_partita']: self.join_game(gid))
-        join_btn.pack(side="right", padx=10, pady=5)
+        """Aggiunge un widget per una partita in attesa SENZA BOTTONI (solo label cliccabili)"""
+        try:
+            print(f"🔧 DEBUG: Inizio creazione widget SEMPLIFICATO per {game}")
+            
+            if not hasattr(self, 'content_container') or not self.content_container:
+                print("❌ content_container non disponibile")
+                return
+            
+            # Crea il frame principale
+            frame = ttk.Frame(self.content_container, relief="raised", borderwidth=2)
+            frame.pack(fill="x", padx=4, pady=2)
+            
+            # Crea la label con le informazioni
+            id_partita = game.get('id_partita', 'N/A')
+            proprietario = game.get('proprietario', 'Sconosciuto')[:20]
+            
+            info = f"ID: {id_partita} | Giocatore: {proprietario} | ⏳ CLICCA QUI PER UNIRTI"
+            
+            # Una sola label cliccabile invece di label + bottone
+            label = ttk.Label(frame, text=info, cursor="hand2", 
+                            background="black", relief="raised", 
+                            padding=(10, 5))
+            label.pack(fill="x", padx=5, pady=5)
+            
+            # Bind del click direttamente sulla label
+            game_id = game['id_partita']
+            label.bind("<Button-1>", lambda e, gid=game_id: self.join_game(gid))
+            
+            print(f"🔧 DEBUG: Widget semplificato creato con successo per {game}")
+            
+            # Forza aggiornamento
+            frame.update_idletasks()
+            
+        except Exception as e:
+            print(f"❌ Errore creazione widget semplificato: {type(e).__name__}: {e}")
+            import traceback
+            traceback.print_exc()
 
     def add_received_request_widget(self, request):
         """Aggiunge un widget per una richiesta ricevuta"""
@@ -547,13 +605,25 @@ class HomePage(tk.Frame):
             self.welcome_label.config(text=f"Errore: {str(e)}", foreground="red")
 
     def on_frame_configure(self, event):
-        """Aggiorna la scrollregion quando il contenuto cambia"""
-        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        """Aggiorna la scrollregion quando il contenuto cambia (PROTETTO)"""
+        try:
+            bbox = self.canvas.bbox("all")
+            if bbox is not None:
+                self.canvas.configure(scrollregion=bbox)
+            else:
+                # Se bbox è None, usa una scrollregion di default
+                self.canvas.configure(scrollregion=(0, 0, 0, 0))
+        except Exception as e:
+            print(f"❌ Errore in on_frame_configure: {e}")
 
     def on_canvas_configure(self, event):
-        """Configura la larghezza del frame interno quando il canvas cambia dimensione"""
-        canvas_width = event.width
-        self.canvas.itemconfig(self.canvas_window, width=canvas_width)
+        """Configura la larghezza del frame interno quando il canvas cambia dimensione (PROTETTO)"""
+        try:
+            canvas_width = event.width
+            if hasattr(self, 'canvas_window') and self.canvas_window:
+                self.canvas.itemconfig(self.canvas_window, width=canvas_width)
+        except Exception as e:
+            print(f"❌ Errore in on_canvas_configure: {e}")
 
     def on_mousewheel(self, event):
         """Gestisce lo scroll con la rotella del mouse"""
