@@ -54,23 +54,33 @@ class SelectBasedClient:
     def check_server_messages(self):
         """Controlla se ci sono messaggi dal server (non bloccante)"""
         if not self.connected or not self.socket:
-            return None
+            return []
             
+        messages = []
         try:
-            # Usa select con timeout 0 per controllo non bloccante
-            ready, _, _ = select.select([self.socket], [], [], 0)
-            
-            if ready:
-                data = self.socket.recv(4096).decode()
-                if not data:
-                    return None
-                return data
-            else:
-                return None  # Nessun dato disponibile
+            # Continua a leggere finché ci sono dati disponibili
+            while True:
+                # Usa select con timeout 0 per controllo non bloccante
+                ready, _, _ = select.select([self.socket], [], [], 0)
                 
+                if ready:
+                    data = self.socket.recv(4096).decode()
+                    if not data:
+                        break  # Connessione chiusa
+                    
+                    # Potrebbe esserci più di un messaggio JSON nel buffer
+                    # Dividi per newline se i messaggi sono separati così
+                    lines = data.strip().split('\n')
+                    for line in lines:
+                        if line.strip():
+                            messages.append(line.strip())
+                else:
+                    break  # Nessun dato disponibile
+                    
         except Exception as e:
             print(f"Errore ricezione: {e}")
-            return None
+            
+        return messages
             
     def close(self):
         """Chiude la connessione"""
@@ -97,10 +107,10 @@ def send_to_server(path, body):
     return _client.send_to_server(path, body)
 
 def receive_from_server():
-    """Funzione di compatibilità per ricezione (safe)"""
+    """Funzione di compatibilità per ricezione (safe) - restituisce TUTTI i messaggi"""
     global _client
     if _client is None:
-        return None
+        return []
     return _client.check_server_messages()
 
 def close_connections():

@@ -507,7 +507,10 @@ void GamePlayer1(int *leave_flag,int*leave_game,char*buffer,GAME*nuova_partita,G
         }
 }*/
 
-void GamePlayer1(GAME*nuova_partita,GIOCATORE*Giocatore1){
+void * GamePlayer1(void *arg){
+        GAME* nuova_partita = (GAME*)arg;
+        GIOCATORE* Giocatore1 = nuova_partita->giocatoreParticipante[0];
+        // MODIFICA: Aggiunto controllo se Giocatore1 è
         printf("sono in partita: %s\n", Giocatore1->nome);
         fflush(stdout);
         int leave_game=0;
@@ -563,7 +566,10 @@ void GamePlayer2(int *leave_flag,int*leave_game,GAME*nuova_partita,GIOCATORE*Gio
         }
 }*/
 
-void GamePlayer2(GAME*nuova_partita,GIOCATORE*Giocatore2){
+void *GamePlayer2(void *arg){
+        GAME* nuova_partita = (GAME*)arg;
+        GIOCATORE* Giocatore2 = nuova_partita->giocatoreParticipante[1];
+        // MODIFICA: Aggiunto controllo se Giocatore2 è
         printf("sono nel game player 2\n");
         int*leave_game=0;
         //fflush(stdout);

@@ -35,7 +35,6 @@ void remove_request_by_GAME(int id_partita) {
     
         return; // Non c'è nulla da rimuovere
     }
-    pthread_mutex_lock(&gameListLock);
     // Rimuove le richiesta associate alla partita
     for (int j = 0; j < MAX_GIOCATORI; ++j) {
         if (partita->richieste[j]) {
@@ -45,7 +44,6 @@ void remove_request_by_GAME(int id_partita) {
                 }
         }
     
-    pthread_mutex_unlock(&gameListLock);
 
  
 }
@@ -79,14 +77,22 @@ void accetta_richiesta(RICHIESTA* richiesta,int id_partita,GIOCATORE*giocatore1,
         send_success_message(1, giocatore2->socket, "la tua richiesta è stata accettata");
         send_success_message(1, giocatore1->socket, "stai entrando in game");
         //qui da segmentation fault
+        
+        pthread_mutex_lock(&gameListLock);
         remove_request_by_player(giocatore1);
         remove_request_by_player(giocatore2);
         //eliminare tutte le richieste
         remove_request_by_GAME(id_partita);
-    }
 
-    GamePlayer1(partita,giocatore1);
-    GamePlayer2(partita,giocatore2);
+        pthread_mutex_unlock(&gameListLock);
+
+        //passare secondo giocatore alla partita
+    }
+    pthread_t tid1, tid2;
+
+    pthread_create(&tid1, NULL, GamePlayer1, partita);
+    pthread_create(&tid2, NULL, GamePlayer2, partita);
+
     
 }
 

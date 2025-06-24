@@ -136,10 +136,8 @@ class HomePage(tk.Frame):
         self.update_button_styles()
 
     def start_server_listener(self):
-        """Avvia il monitoraggio del server usando select (non-bloccante)"""
         if self.listener_active:
-            return  # Listener già attivo
-            
+            return  # Listener già attivo    
         self.listener_active = True
         self.poll_server_messages()
         print("🔄 Server listener avviato (select-based)")
@@ -155,21 +153,21 @@ class HomePage(tk.Frame):
     def poll_server_messages(self):
         """Controlla periodicamente se ci sono messaggi dal server usando select"""
         if not self.listener_active:
-            return
-            
+            return    
         try:
             # Simile al pattern C: controlla se ci sono dati dal server
-            response = receive_from_server()
-            if response:
-                try:
-                    data = json.loads(response)
-                    self.handle_server_message(data)
-                    print(f"📨 Messaggio server processato: {data.get('path', 'unknown')}")
-                except json.JSONDecodeError:
-                    print(f"❌ Errore parsing JSON dal server: {response}")
+            messages = receive_from_server()
+            if messages:
+                print(f"📨 Ricevuti {len(messages)} messaggi dal server")
+                for response in messages:
+                    try:
+                        data = json.loads(response)
+                        self.handle_server_message(data)
+                        print(f"📨 Messaggio server processato: {data.get('path', 'unknown')}")
+                    except json.JSONDecodeError:
+                        print(f"❌ Errore parsing JSON dal server: {response}")
         except Exception as e:
             print(f"❌ Errore polling server: {type(e).__name__}: {e}")
-        
         # Programma il prossimo controllo (ogni 100ms, come il timeout nel codice C)
         if self.listener_active:
             self.server_polling_id = self.after(100, self.poll_server_messages)
@@ -178,8 +176,10 @@ class HomePage(tk.Frame):
         """Gestisce i messaggi ricevuti dal server"""
         message_type = data.get("path") or data.get("type")
         
+        print(f"🔍 DEBUG: Gestione messaggio tipo '{message_type}' con dati: {data}")
+        
         if message_type == "/new_request":
-            # Nuova richiesta ricevuta dal server (PUSH)
+            # Nuova richiesta ricevuta dal server
             new_request = {
                 'game_id': data.get('game_id'),
                 'player_id': data.get('player_id'),
@@ -188,13 +188,15 @@ class HomePage(tk.Frame):
             self.add_received_request(new_request)
             print(f"🔔 Nuova richiesta ricevuta da {data.get('player_name')} per partita {data.get('player_id')}")
         elif message_type == "/remove_request":
-            # Richiesta annullata (PUSH)
+            # Richiesta annullata
             player_id = data.get('player_id')
             game_id = data.get('game_id')
             # Rimuovi la richiesta dalla lista locale usando player_id e game_id
-            self.cancel_request(player_id, game_id)
-            print(f"🗑️ Richiesta annullata da {data.get('player_name')} per partita {game_id}")
-            
+            for request in self.received_requests:
+                if(request.get('player_id') == player_id and request.get('game_id') == game_id):
+                    self.received_requests.remove(request)
+                    self.update_received_requests()
+            print(f"🗑️ Richiesta annullata da {data.get('mittente')} per partita {game_id}")    
         elif message_type == "request_accepted":
             # Partita iniziata
             print("🎮 Partita iniziata!")
@@ -219,7 +221,6 @@ class HomePage(tk.Frame):
 
     def add_received_request(self, request):
         """Aggiunge una nuova richiesta ricevuta alla lista locale (SOLO da server push)"""
-        # Evita duplicati basati su id_richiesta
         self.received_requests.append(request)
         print(f"📥 Richiesta ricevuta aggiunta: {request}")
         
@@ -232,7 +233,7 @@ class HomePage(tk.Frame):
             self.welcome_label.config(text=f"📩 Nuova richiesta da {request['mittente']}", foreground="blue")
 
     def add_sent_request(self, request):
-        """Aggiunge una nuova richiesta inviata alla lista locale (SOLO quando success)"""
+        """Aggiunge una nuova richiesta inviata alla lista locale"""
         self.sent_requests.append(request)
         print(f"📤 Richiesta inviata aggiunta: {request}")
         
@@ -284,9 +285,6 @@ class HomePage(tk.Frame):
             self.update_sent_requests()
 
     def periodic_update_content(self):
-        """DISABILITATO COMPLETAMENTE per debug del segfault"""
-        print("🔄 Polling automatico completamente disabilitato per debug")
-        # Commentiamo tutto per testare
         self._content_after_id = self.after(3000, self.periodic_update_content)
         if self.current_view == "waiting_games":
              self.update_waiting_games()
@@ -333,13 +331,7 @@ class HomePage(tk.Frame):
             try:
                 games = json.loads(games)
                 games = games.get("partite", [])
-                print(f"🔄 Partite parsate: {games}")
-                
-                # Limita il numero di partite per evitare overflow
-                if len(games) > 20:
-                    games = games[:20]
-                    print("⚠️ Limitato a 20 partite per sicurezza")
-                    
+                print(f"🔄 Partite parsate: {games}")                    
             except json.JSONDecodeError as e:
                 print(f"❌ Errore parsing JSON: {e}")
                 games = []
@@ -367,8 +359,7 @@ class HomePage(tk.Frame):
             print(f"🔄 Creazione widget per {len(games)} partite...")
             for i, game in enumerate(games):
                 print(f"🔄 Creazione widget {i+1}/{len(games)}: {game}")
-                self.add_waiting_game_widget(game)
-                
+                self.add_waiting_game_widget(game)  
             print("✅ Tutti i widget creati con successo")
             
         except Exception as e:
@@ -399,9 +390,9 @@ class HomePage(tk.Frame):
             self.add_sent_request_widget(request)
 
     def add_waiting_game_widget(self, game):
-        """Aggiunge un widget per una partita in attesa SENZA BOTTONI (solo label cliccabili)"""
+        """Aggiunge un widget per una partita in attesa(solo label cliccabili)"""
         try:
-            print(f"🔧 DEBUG: Inizio creazione widget SEMPLIFICATO per {game}")
+            print(f"🔧 DEBUG: Inizio creazione widget per {game}")
             
             if not hasattr(self, 'content_container') or not self.content_container:
                 print("❌ content_container non disponibile")
@@ -438,24 +429,38 @@ class HomePage(tk.Frame):
             traceback.print_exc()
 
     def add_received_request_widget(self, request):
-        """Aggiunge un widget per una richiesta ricevuta"""
-        frame = ttk.Frame(self.content_container, style=CARD_FRAME_STYLE, relief="raised", borderwidth=1)
-        frame.pack(fill="x", padx=4, pady=2)
-        
-        info = f"Da: {request['mittente']} Partita: {request['game_id']}| 📩 Richiesta di sfida"
-        label = ttk.Label(frame, text=info, style="TLabel")
-        label.pack(side="left", padx=10, pady=5)
-        
-        btn_frame = ttk.Frame(frame)
-        btn_frame.pack(side="right", padx=10, pady=5)
-        
-        accept_btn = ttk.Button(btn_frame, text="Accetta", style=ACCENT_BUTTON_STYLE,
-                               command=lambda pid=request.get('player_id'), gid=request.get('game_id'): self.accept_request(pid, gid))
-        accept_btn.pack(side="right", padx=2)
-        
-        decline_btn = ttk.Button(btn_frame, text="Rifiuta", 
-                                command=lambda pid=request.get('player_id'), gid=request.get('game_id'): self.decline_request(pid, gid))
-        decline_btn.pack(side="right", padx=2)
+        """Versione semplificata senza bottoni TTK (solo label)"""
+        try:
+            frame = ttk.Frame(self.content_container, relief="raised", borderwidth=1)
+            frame.pack(fill="x", padx=4, pady=2)
+            
+            mittente = request.get('mittente', 'Sconosciuto')[:20]
+            game_id = request.get('game_id', 'N/A')
+            player_id = request.get('player_id', 'N/A')
+            
+            info = f"Da: {mittente} | Partita: {game_id} | 📩 Richiesta di sfida"
+            label = ttk.Label(frame, text=info)
+            label.pack(side="left", padx=10, pady=5, fill="x", expand=True)
+            
+            # Due label cliccabili invece di bottoni
+            accept_label = ttk.Label(frame, text="✅ ", cursor="hand2", 
+                                background="green", foreground="white", 
+                                relief="raised", padding=(5, 2))
+            accept_label.pack(side="right", padx=2)
+            accept_label.bind("<Button-1>", 
+                            lambda e, pid=player_id, gid=game_id: self.accept_request(pid, gid))
+            
+            decline_label = ttk.Label(frame, text="❌ ", cursor="hand2",
+                                    background="red", foreground="white",
+                                    relief="raised", padding=(5, 2))
+            decline_label.pack(side="right", padx=2)  
+            decline_label.bind("<Button-1>",
+                            lambda e, pid=player_id, gid=game_id: self.decline_request(pid, gid))
+            
+            frame.update_idletasks()
+            
+        except Exception as e:
+            print(f"❌ Errore widget semplice: {e}")
 
     def add_sent_request_widget(self, request):
         """Aggiunge un widget per una richiesta effettuata"""
@@ -465,18 +470,20 @@ class HomePage(tk.Frame):
         request_stato = request.get('stato', STATO_IN_ATTESA)
         if request_stato == STATO_IN_ATTESA:
             status_icon = "⏳"
-        elif request_stato == 'accepted':
-            status_icon = "✅"
         else:
             status_icon = "❌"
-        info = f"Partita: {request['game_id']} | {status_icon} {request_stato.title()}"
-        label = ttk.Label(frame, text=info, style="TLabel")
-        label.pack(side="left", padx=10, pady=5)
+        
         
         if request_stato in [STATO_IN_ATTESA, None]:
-            cancel_btn = ttk.Button(frame, text="Annulla", 
-                                   command=lambda pid=request.get('player_id'), gid=request.get('game_id'): self.cancel_request(pid, gid))
-            cancel_btn.pack(side="right", padx=10, pady=5)
+            info = f"Partita: {request['game_id']} | {status_icon} {request_stato.title()} | 🗑️ CLICCA PER ANNULLARE"
+            label = ttk.Label(frame, text=info, style="TLabel", cursor="hand2", relief="raised")
+            label.bind("<Button-1>", lambda e, pid=request.get('player_id'), gid=request.get('game_id'): self.cancel_request(pid, gid))
+        else:   
+            info = f"Partita: {request['game_id']} | {status_icon} {request_stato.title()}"
+            label = ttk.Label(frame, text=info, style="TLabel")
+        label.pack(side="left", padx=10, pady=5)
+
+                                  
 
     def new_game(self):
         """Crea una nuova partita"""
@@ -484,12 +491,12 @@ class HomePage(tk.Frame):
         try:
             data = json.loads(response)
             if data.get("success") == 1:
-                self.welcome_label.config(text="Partita creata con successo!", foreground="green")
+                self.welcome_label.config(text=data.get("message"), foreground="green")
                 # Aggiorna la vista se siamo nelle partite in attesa
                 if self.current_view == "waiting_games":
                     self.update_waiting_games()
             else:
-                self.welcome_label.config(text="Errore nella creazione della partita", foreground="red")
+                self.welcome_label.config(text=data.get("message"), foreground="red")
         except json.JSONDecodeError:
             self.welcome_label.config(text=ERROR_SERVER_RESPONSE, foreground="red")
         except Exception as e:
