@@ -107,10 +107,10 @@ def send_to_server(path, body):
     return _client.send_to_server(path, body)
 
 def receive_from_server():
-    """Funzione di compatibilità per ricezione (safe) - restituisce TUTTI i messaggi"""
+    """Funzione di compatibilità per ricezione (safe)"""
     global _client
     if _client is None:
-        return []
+        return None
     return _client.check_server_messages()
 
 def close_connections():

@@ -1,10 +1,10 @@
 import tkinter as tk
 from tkinter import ttk
-from login_page import LoginPage
-from home_page import HomePage
+from pages.login_page import LoginPage
+from pages.home.home_page import HomePage
 from client_network import send_to_server, connect_to_server, close_connections
-from game_page import GamePage
-from attend_page import AttendPage
+from pages.game_page import GamePage
+from pages.attend_page import AttendPage
 import atexit
 
 FONT_FAMILY = "Segoe UI"
