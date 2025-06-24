@@ -281,7 +281,6 @@ void rimuovi_richiesta(int id_partita, GIOCATORE* giocatore) {
     pthread_mutex_unlock(&lock);
 }
 // fin qui tutto va bene
-
 // MODIFICA: Aggiunto parametro GIOCATORE per poter inviare risposta
 void gestioneRichiestaJSONuscita(cJSON*json,int*leave_flag,int*leave_game,GIOCATORE*giocatore){
     if(json!=NULL){
@@ -349,7 +348,7 @@ void GameStartPlayer1(int*leave_flag,char*buffer,GAME*nuova_partita){
     fflush(stdout);
     
     sendJoinGame(nuova_partita->giocatoreParticipante[1],nuova_partita);
-    GamePlayer1(leave_flag,&leave_game,buffer,nuova_partita,nuova_partita->giocatoreParticipante[0]);
+    //GamePlayer1(leave_flag,&leave_game,buffer,nuova_partita,nuova_partita->giocatoreParticipante[0]);
     
     printf("Giocatore 1 ha terminato la partita con id: %d\n", nuova_partita->id);
     fflush(stdout);
@@ -457,7 +456,7 @@ void GameStartPlayer2(int*leave_flag,GAME*nuova_partita,GIOCATORE*giocatore2){
         pthread_mutex_unlock(&gameListLock);
         sendSuccessNewGame(1,giocatore2,nuova_partita->id);
         //invio messaggio di unione partita al giocatore 1:
-        GamePlayer2(leave_flag,&leave_game,nuova_partita,giocatore2);
+       // GamePlayer2(leave_flag,&leave_game,nuova_partita,giocatore2);
 
 
     }else{
@@ -479,7 +478,7 @@ void sendSuccessNewGame(int success, GIOCATORE*giocatore, int id_partita){
     cJSON_Delete(root);
     free(msg);
 }
-
+/*
 void GamePlayer1(int *leave_flag,int*leave_game,char*buffer,GAME*nuova_partita,GIOCATORE*Giocatore1){
         printf("sono in partita: %s\n", Giocatore1->nome);
         fflush(stdout);
@@ -506,8 +505,36 @@ void GamePlayer1(int *leave_flag,int*leave_game,char*buffer,GAME*nuova_partita,G
             nuova_partita->turno=1;//cambio turno
             sem_post(&(nuova_partita->semaforo)); 
         }
-}
+}*/
 
+void GamePlayer1(GAME*nuova_partita,GIOCATORE*Giocatore1){
+        printf("sono in partita: %s\n", Giocatore1->nome);
+        fflush(stdout);
+        int leave_game=0;
+        while((!leave_game)&& (nuova_partita->esito==0)){
+           
+            if(nuova_partita->turno!=0){
+                   sem_wait(&(nuova_partita->semaforo));   
+            }
+            
+            // MODIFICA: Aggiunto controllo condizioni uscita dopo sem_wait
+            if(leave_game || nuova_partita->esito != 0){
+                break;
+            }
+            
+            //inviare matrice del tris al giocatore 1
+            
+
+            //controllo se la partita è terminata oppure giocatore 2 è uscito
+            //inviare nuova mossa o uscire 
+
+            //TO-DO gioco 
+
+            nuova_partita->turno=1;//cambio turno
+            sem_post(&(nuova_partita->semaforo)); 
+        }
+}
+/*
 void GamePlayer2(int *leave_flag,int*leave_game,GAME*nuova_partita,GIOCATORE*Giocatore2){
         //stampa("sono nel game player 2\n");
         //fflush(stdout);
@@ -520,6 +547,35 @@ void GamePlayer2(int *leave_flag,int*leave_game,GAME*nuova_partita,GIOCATORE*Gio
             
             // MODIFICA: Aggiunto controllo condizioni uscita dopo sem_wait
             if(*leave_flag || *leave_game || nuova_partita->esito != 0){
+                break;
+            }
+            
+            //inviare matrice del tris al giocatore 2
+
+
+            //controllo se la partita è terminata oppure giocatore 1 è uscito
+            //inviare nuova mossa o uscire
+
+            //TO-DO gioco 
+
+            nuova_partita->turno=0;//cambio turno
+            sem_post(&(nuova_partita->semaforo)); 
+        }
+}*/
+
+void GamePlayer2(GAME*nuova_partita,GIOCATORE*Giocatore2){
+        printf("sono nel game player 2\n");
+        int*leave_game=0;
+        //fflush(stdout);
+        printf("sono in partita: %s\n", Giocatore2->nome);
+        fflush(stdout);
+        while((!leave_game) && (nuova_partita->esito==0)){
+            if(nuova_partita->turno!=1){
+                   sem_wait(&(nuova_partita->semaforo));   
+            }
+            
+            // MODIFICA: Aggiunto controllo condizioni uscita dopo sem_wait
+            if(leave_game || nuova_partita->esito != 0){
                 break;
             }
             

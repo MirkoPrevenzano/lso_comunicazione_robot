@@ -84,7 +84,7 @@ void joinLobby(int*leave_flag,cJSON * body,GIOCATORE*nuovo_giocatore){
 
 
 
-GAME* searchPartitaById(int id){
+GAME * searchPartitaById(int id){
     pthread_mutex_lock(&gameListLock);
     for(int i=0;i<MAX_GAME;i++)
         if(Partite[i]->id==id){

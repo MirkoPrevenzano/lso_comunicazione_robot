@@ -58,4 +58,6 @@ void checkRouter(char* buffer, GIOCATORE*nuovo_giocatore, int socket_nuovo, int 
 
 void *handle_close(void *);
 
+GIOCATORE * SearchPlayerByid(int id_player);
+
 #endif

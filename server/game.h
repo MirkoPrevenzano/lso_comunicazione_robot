@@ -52,8 +52,11 @@ void invia_richiesta_proprietario(GAME* , GIOCATORE* );
 
 void GameStartPlayer1(int*leave_flag,char*buffer,GAME*nuova_partita);
 void GameStartPlayer2(int*leave_flag,GAME*nuova_partita,GIOCATORE*Giocatore2);
-void GamePlayer1(int *leave_flag,int*leave_game,char*buffer,GAME*nuova_partita,GIOCATORE*Giocatore1);
-void GamePlayer2(int *leave_flag,int*leave_game,GAME*nuova_partita,GIOCATORE*Giocatore2);
+//void GamePlayer1(int *leave_flag,int*leave_game,char*buffer,GAME*nuova_partita,GIOCATORE*Giocatore1);
+void GamePlayer1(GAME*nuova_partita,GIOCATORE*Giocatore1);
+//void GamePlayer2(int *leave_flag,int*leave_game,GAME*nuova_partita,GIOCATORE*Giocatore2);
+void GamePlayer2(GAME*nuova_partita,GIOCATORE*Giocatore2);
+
 
 cJSON* read_with_timeout(int sockfd, char* buffer, size_t len, int timeout_sec,int*leave_game);
 void gestioneRichiestaJSONuscita(cJSON* json,int*leave_flag,int*leave_game, GIOCATORE *);
