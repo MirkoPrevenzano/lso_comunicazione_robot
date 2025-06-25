@@ -35,7 +35,6 @@ class RequestManager:
         """Aggiunge una nuova richiesta inviata."""
         # Evita duplicati
         if not any(r['game_id'] == request['game_id'] for r in self.sent_requests):
-            request['status'] = 'pending'
             self.sent_requests.append(request)
             self._update_ui_if_needed("sent_requests")
             print(f"✅ Aggiunta richiesta inviata: {request}")
@@ -49,11 +48,11 @@ class RequestManager:
         self._update_ui_if_needed("sent_requests")
         print(f"🗑️ Rimossa richiesta inviata: game={game_id}")
     
-    def update_sent_request_status(self, player_id, game_id, status):
+    def update_sent_request_status(self, game_id, status):
         """Aggiorna lo stato di una richiesta inviata."""
         for request in self.sent_requests:
             if request['game_id'] == game_id:
-                request['status'] = status
+                request['stato'] = status
                 self._update_ui_if_needed("sent_requests")
                 print(f"📝 Aggiornato stato richiesta {game_id}: {status}")
                 break

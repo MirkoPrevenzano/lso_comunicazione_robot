@@ -100,16 +100,15 @@ void rifiuta_richiesta(RICHIESTA* richiesta,int id_partita,GIOCATORE*giocatore1 
     pthread_mutex_lock(&lock);
     pthread_mutex_lock(&gameListLock);
     
-    GAME* partita = Partite[id_partita];
     
     if(richiesta == NULL){
         printf("Nessuna richiesta o gioco trovati");
         send_success_message(0, giocatore1->socket, "errore, richiesta o partita non trovati");
         return;
     }else{
-        send_success_message(0, giocatore2->socket, "richiesta rifiutata");
-        elimina_richiesta(richiesta);
-        partita->numero_richieste--;
+        richiesta->stato = RICHIESTA_RIFIUTATA; // Aggiorna lo stato della richiesta
+        //{path: "/decline_request", body: {game_id: id_partita}}
+        send_declined_request_message(id_partita, giocatore2);
         printf("Richiesta rimossa per il giocatore %s dalla partita %d\n", giocatore2->nome, id_partita);
         send_success_message(1, giocatore1->socket, "Richiesta rimossa con successo");
     }

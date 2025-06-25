@@ -126,6 +126,27 @@ void send_success_message(int success, int socket, const char* message){
     cJSON_Delete(response); // Libera la memoria allocata per la risposta
     
 }
+
+void send_declined_request_message(int id_partita, GIOCATORE* giocatore) {
+    cJSON *response = cJSON_CreateObject();
+    cJSON_AddStringToObject(response, "path", "/decline_request");
+    cJSON_AddNumberToObject(response, "game_id", id_partita);
+    cJSON_AddStringToObject(response, "message", "Richiesta rifiutata");
+
+    char *msg = cJSON_PrintUnformatted(response);
+    
+    // Controllo se il socket è valido prima dell'invio
+    if(giocatore->socket > 0) {
+        send(giocatore->socket, msg, strlen(msg), 0);
+        printf("Richiesta rifiutata inviata al giocatore %s\n", giocatore->nome);
+    } else {
+        printf("Socket del giocatore non valido\n");
+    }
+    
+    free(msg);
+    cJSON_Delete(response);
+}
+
 void aggiungi_richiesta(int id_partita, GIOCATORE* giocatore) {
     pthread_mutex_lock(&lock);
     pthread_mutex_lock(&gameListLock);

@@ -100,7 +100,7 @@ class HomeWidgets:
             request_stato = request.get('stato', STATO_IN_ATTESA)
             if request_stato == STATO_IN_ATTESA:
                 status_icon = "⏳"
-            else:
+            elif request_stato == "declined":
                 status_icon = "❌"
                 
             if request_stato in [STATO_IN_ATTESA, None]:

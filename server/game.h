@@ -46,6 +46,8 @@ typedef struct game{
 
 void new_game(int*leave_flag,char*buffer,GIOCATORE*giocatore);
 void send_success_message(int success, int socket, const char* message);
+void send_declined_request_message(int , GIOCATORE* );
+
 void aggiungi_richiesta(int, GIOCATORE*);
 void rimuovi_richiesta(int , GIOCATORE*);
 void invia_richiesta_proprietario(GAME* , GIOCATORE* );

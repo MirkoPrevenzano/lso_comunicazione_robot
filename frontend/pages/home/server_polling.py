@@ -17,7 +17,7 @@ class ServerPollingManager:
             "/new_request": self._handle_new_request,
             "/remove_request": self._handle_remove_request,
             "request_accepted": self._handle_request_accepted,
-            "request_declined": self._handle_request_declined
+            "/decline_request": self._handle_request_declined
         }
     
     def start_listener(self):
@@ -113,7 +113,7 @@ class ServerPollingManager:
     
     def _handle_request_declined(self, data):
         """Gestisce richiesta rifiutata"""
-        player_id = data.get('player_id')
+        print("❌ Richiesta rifiutata dal server")
         game_id = data.get('game_id')
-        self.home_page.request_manager.update_sent_request_status(player_id, game_id, 'declined')
-        print(f"❌ Richiesta player:{player_id} game:{game_id} rifiutata")
+        self.home_page.request_manager.update_sent_request_status(game_id, 'declined')
+        print(f"❌ game:{game_id} rifiutata")
