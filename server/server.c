@@ -254,20 +254,28 @@ void * checkRouterThread(void *arg) {
     int socket_fd = nuovo_giocatore->socket;
     printf("Thread di controllo router avviato per il giocatore %s\n", nuovo_giocatore->nome);
     fflush(stdout);
+    
     // Inizializza il buffer
     memset(buffer, 0, sizeof(buffer));
-    while (!leave_flag && nuovo_giocatore->stato == IN_HOME) {
+    
+    // Continua fino alla disconnessione, non solo quando è IN_HOME
+    while (!leave_flag) {
         int size = read(socket_fd, buffer, BUFFER_SIZE - 1);
 
         if (size <= 0) {
             leave_flag = 1; // Indica che il client si è disconnesso o c'è stato un errore
-            return NULL;
+            break;
         }
         buffer[size] = '\0';
+        
+        // Gestisce tutti i messaggi in base allo stato del giocatore
         checkRouter(buffer, nuovo_giocatore, socket_fd, &leave_flag);
     }
+    
+    printf("Thread router terminato per giocatore %s\n", nuovo_giocatore->nome);
     return NULL; // Termina il thread
 }
+
 void checkRouter(char* buffer, GIOCATORE*nuovo_giocatore, int socket_nuovo, int *leave_flag){
         
     cJSON *json = cJSON_Parse(buffer);
@@ -282,139 +290,150 @@ void checkRouter(char* buffer, GIOCATORE*nuovo_giocatore, int socket_nuovo, int 
             return;
         }
 
-        //questo primo path è restituisce al client la lista dei giochi in attesa
-        if (strcmp(path->valuestring, "/waiting_games") == 0) {
-            pthread_mutex_lock(&gameListLock);
-            printf("Richiesta di giochi in attesa ricevuta\n");
-            handlerInviaGames(socket_nuovo);
-            pthread_mutex_unlock(&gameListLock);
-            //il server rimane in attesa per la scelta della lobby oppure eventuale uscita
-        }
-        if(strcmp(path->valuestring, "/join_game") == 0) {
-            printf("Richiesta di partecipazione a una partita ricevuta\n");
-           // joinLobby();
-        }
-        if(strcmp(path->valuestring, "/new_game") == 0) {
-            pthread_mutex_lock(&gameListLock);
-            printf("Richiesta di creazione partita ricevuta\n");
-            new_game(leave_flag,buffer,nuovo_giocatore);
-            pthread_mutex_unlock(&gameListLock);
-        }
-        if(strcmp(path->valuestring, "/add_request") == 0) {
-            //body è un json con id della partita
-            printf("Richiesta di aggiunta a una partita ricevuta\n");
-            printf("Body ricevuto: %s\n", body->valuestring);
-            fflush(stdout);
-            
-            // Parsa il JSON body
-            cJSON *body_json = cJSON_Parse(body->valuestring);
-            if (!body_json) {
-                printf("Errore nel parsing del JSON body\n");
-                *leave_flag = 1;
-            } else {
-                cJSON *id_item = cJSON_GetObjectItem(body_json, "id");
-                if (id_item && cJSON_IsNumber(id_item)) {
-                    int id_partita = id_item->valueint;
-                    printf("ID partita: %d\n", id_partita);
-                    // Aggiungi la richiesta alla partita
-                    aggiungi_richiesta(id_partita, nuovo_giocatore);
+        // Messaggi disponibili solo quando il giocatore è IN_HOME
+        if (nuovo_giocatore->stato == IN_HOME) {
+            //questo primo path è restituisce al client la lista dei giochi in attesa
+            if (strcmp(path->valuestring, "/waiting_games") == 0) {
+                pthread_mutex_lock(&gameListLock);
+                printf("Richiesta di giochi in attesa ricevuta\n");
+                handlerInviaGames(socket_nuovo);
+                pthread_mutex_unlock(&gameListLock);
+            }
+            else if(strcmp(path->valuestring, "/join_game") == 0) {
+                printf("Richiesta di partecipazione a una partita ricevuta\n");
+               // joinLobby();
+            }
+            else if(strcmp(path->valuestring, "/new_game") == 0) {
+                pthread_mutex_lock(&gameListLock);
+                printf("Richiesta di creazione partita ricevuta\n");
+                new_game(leave_flag,buffer,nuovo_giocatore);
+                pthread_mutex_unlock(&gameListLock);
+            }
+            else if(strcmp(path->valuestring, "/add_request") == 0) {
+                printf("Richiesta di aggiunta a una partita ricevuta\n");
+                printf("Body ricevuto: %s\n", body->valuestring);
+                fflush(stdout);
+                
+                // Parsa il JSON body
+                cJSON *body_json = cJSON_Parse(body->valuestring);
+                if (!body_json) {
+                    printf("Errore nel parsing del JSON body\n");
+                    *leave_flag = 1;
                 } else {
-                    printf("Il campo 'id' non è presente o non è un numero.\n");
-                    send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
-                }
-                cJSON_Delete(body_json);
-            }
-        }
-        if(strcmp(path->valuestring, "/remove_request") == 0) {
-            printf("Richiesta di rimozione da una partita ricevuta\n");
-            printf("Body ricevuto: %s\n", body->valuestring);
-            fflush(stdout);
-            
-            // Parsa il JSON body
-            cJSON *body_json = cJSON_Parse(body->valuestring);
-            if (!body_json) {
-                printf("Errore nel parsing del JSON body\n");
-                send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
-            } else {
-                cJSON *id_item = cJSON_GetObjectItem(body_json, "game_id");
-                if (id_item && cJSON_IsNumber(id_item)) {
-                    int id_partita = id_item->valueint;
-                    printf("ID partita: %d\n", id_partita);
-                    // Rimuovi la richiesta dalla partita
-                    rimuovi_richiesta(id_partita, nuovo_giocatore); 
-                } else {
-                    printf("Il campo 'game_id' non è presente o non è un numero.\n");
-                    send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
-                }
-                cJSON_Delete(body_json);
-            }
-        }
-        if(strcmp(path->valuestring, "/accept_request") == 0) {
-           printf("Richiesta di accetazione una partita ricevuta\n");
-            printf("Body ricevuto: %s\n", body->valuestring);
-            fflush(stdout);
-            
-            // Parsa il JSON body
-            cJSON *body_json = cJSON_Parse(body->valuestring);
-            if (!body_json) {
-                printf("Errore nel parsing del JSON body\n");
-                send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
-            } else {
-                cJSON *id_item = cJSON_GetObjectItem(body_json, "game_id");
-                cJSON *id_item_2 = cJSON_GetObjectItem(body_json, "player_id");
-                //bisogan ora inviare al player id il messaggio ed eseguire joinlobby
-                 if (id_item && cJSON_IsNumber(id_item)) {
-                    int id_partita = id_item->valueint;
-                    printf("ID partita: %d\n", id_partita);
-                    if (id_item_2 && cJSON_IsNumber(id_item_2)) {
-                        int id_player = id_item_2->valueint;
-                        printf("ID Giocatore della richiesta: %d\n", id_player);
-                        GIOCATORE * nuovo_giocatore_2 = SearchPlayerByid(id_player);
-                        accetta_richiesta(searchRichiesta(id_partita, SearchPlayerByid(id_player)),id_partita,nuovo_giocatore, nuovo_giocatore_2);
-                    }else{
-                    printf("Il campo 'player_id' non è presente o non è un numero.\n");
-                    send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
-                }}else {
-                    printf("Il campo 'game_id' non è presente o non è un numero.\n");
-                    send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
-                }
-                cJSON_Delete(body_json);
-            }
-
-        }
-        if(strcmp(path->valuestring, "/decline_request") == 0) {
-           printf("rifiuto di una richiesta ricevuta\n");
-            printf("Body ricevuto: %s\n", body->valuestring);
-            fflush(stdout);
-            
-            // Parsa il JSON body
-            cJSON *body_json = cJSON_Parse(body->valuestring);
-            if (!body_json) {
-                printf("Errore nel parsing del JSON body\n");
-                send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
-            } else {
-                cJSON *id_item = cJSON_GetObjectItem(body_json, "game_id");
-                cJSON *id_item_2 = cJSON_GetObjectItem(body_json, "player_id");
-                if (id_item && cJSON_IsNumber(id_item)) {
-                    int id_partita = id_item->valueint;
-                    printf("ID partita: %d\n", id_partita);
-                    if (id_item_2 && cJSON_IsNumber(id_item_2)) {
-                        int id_player = id_item_2->valueint;
-                        printf("ID Giocatore della richiesta: %d\n", id_player);
-                        GIOCATORE * nuovo_giocatore_2 = SearchPlayerByid(id_player);
-                        rifiuta_richiesta(searchRichiesta(id_partita, nuovo_giocatore_2),id_partita,nuovo_giocatore,nuovo_giocatore_2); 
-                    }else{
-                        printf("Il campo 'player_id' non è presente o non è un numero.\n");
+                    cJSON *id_item = cJSON_GetObjectItem(body_json, "id");
+                    if (id_item && cJSON_IsNumber(id_item)) {
+                        int id_partita = id_item->valueint;
+                        printf("ID partita: %d\n", id_partita);
+                        // Aggiungi la richiesta alla partita
+                        aggiungi_richiesta(id_partita, nuovo_giocatore);
+                    } else {
+                        printf("Il campo 'id' non è presente o non è un numero.\n");
                         send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
                     }
-                } else {
-                    printf("Il campo 'game_id' non è presente o non è un numero.\n");
-                    send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
+                    cJSON_Delete(body_json);
                 }
-                cJSON_Delete(body_json);
+            }
+            else if(strcmp(path->valuestring, "/remove_request") == 0) {
+                printf("Richiesta di rimozione da una partita ricevuta\n");
+                printf("Body ricevuto: %s\n", body->valuestring);
+                fflush(stdout);
+                
+                // Parsa il JSON body
+                cJSON *body_json = cJSON_Parse(body->valuestring);
+                if (!body_json) {
+                    printf("Errore nel parsing del JSON body\n");
+                    send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
+                } else {
+                    cJSON *id_item = cJSON_GetObjectItem(body_json, "game_id");
+                    if (id_item && cJSON_IsNumber(id_item)) {
+                        int id_partita = id_item->valueint;
+                        printf("ID partita: %d\n", id_partita);
+                        // Rimuovi la richiesta dalla partita
+                        rimuovi_richiesta(id_partita, nuovo_giocatore); 
+                    } else {
+                        printf("Il campo 'game_id' non è presente o non è un numero.\n");
+                        send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
+                    }
+                    cJSON_Delete(body_json);
+                }
+            }
+            else if(strcmp(path->valuestring, "/accept_request") == 0) {
+               printf("Richiesta di accetazione una partita ricevuta\n");
+                printf("Body ricevuto: %s\n", body->valuestring);
+                fflush(stdout);
+                
+                // Parsa il JSON body
+                cJSON *body_json = cJSON_Parse(body->valuestring);
+                if (!body_json) {
+                    printf("Errore nel parsing del JSON body\n");
+                    send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
+                } else {
+                    cJSON *id_item = cJSON_GetObjectItem(body_json, "game_id");
+                    cJSON *id_item_2 = cJSON_GetObjectItem(body_json, "player_id");
+                    //bisogan ora inviare al player id il messaggio ed eseguire joinlobby
+                     if (id_item && cJSON_IsNumber(id_item)) {
+                        int id_partita = id_item->valueint;
+                        printf("ID partita: %d\n", id_partita);
+                        if (id_item_2 && cJSON_IsNumber(id_item_2)) {
+                            int id_player = id_item_2->valueint;
+                            printf("ID Giocatore della richiesta: %d\n", id_player);
+                            GIOCATORE * nuovo_giocatore_2 = SearchPlayerByid(id_player);
+                            accetta_richiesta(searchRichiesta(id_partita, SearchPlayerByid(id_player)),id_partita,nuovo_giocatore, nuovo_giocatore_2);
+                        }else{
+                        printf("Il campo 'player_id' non è presente o non è un numero.\n");
+                        send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
+                    }}else {
+                        printf("Il campo 'game_id' non è presente o non è un numero.\n");
+                        send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
+                    }
+                    cJSON_Delete(body_json);
+                }
+            }
+            else if(strcmp(path->valuestring, "/decline_request") == 0) {
+               printf("rifiuto di una richiesta ricevuta\n");
+                printf("Body ricevuto: %s\n", body->valuestring);
+                fflush(stdout);
+                
+                // Parsa il JSON body
+                cJSON *body_json = cJSON_Parse(body->valuestring);
+                if (!body_json) {
+                    printf("Errore nel parsing del JSON body\n");
+                    send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
+                } else {
+                    cJSON *id_item = cJSON_GetObjectItem(body_json, "game_id");
+                    cJSON *id_item_2 = cJSON_GetObjectItem(body_json, "player_id");
+                    if (id_item && cJSON_IsNumber(id_item)) {
+                        int id_partita = id_item->valueint;
+                        printf("ID partita: %d\n", id_partita);
+                        if (id_item_2 && cJSON_IsNumber(id_item_2)) {
+                            int id_player = id_item_2->valueint;
+                            printf("ID Giocatore della richiesta: %d\n", id_player);
+                            GIOCATORE * nuovo_giocatore_2 = SearchPlayerByid(id_player);
+                            rifiuta_richiesta(searchRichiesta(id_partita, nuovo_giocatore_2),id_partita,nuovo_giocatore,nuovo_giocatore_2); 
+                        }else{
+                            printf("Il campo 'player_id' non è presente o non è un numero.\n");
+                            send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
+                        }
+                    } else {
+                        printf("Il campo 'game_id' non è presente o non è un numero.\n");
+                        send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
+                    }
+                    cJSON_Delete(body_json);
+                }
+            }
+            else {
+                printf("Path non riconosciuto per giocatore IN_HOME: %s\n", path->valuestring);
+                send_success_message(0, nuovo_giocatore->socket, "Comando non disponibile");
             }
         }
-        // ...altre richieste...
+        else if (nuovo_giocatore->stato == IN_GIOCO) {
+            
+        }
+        else {
+            printf("Stato giocatore non riconosciuto: %d\n", nuovo_giocatore->stato);
+            send_success_message(0, nuovo_giocatore->socket, "Stato non valido");
+        }
+        
         cJSON_Delete(json);
 }
 

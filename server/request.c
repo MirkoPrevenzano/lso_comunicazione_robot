@@ -73,7 +73,12 @@ void accetta_richiesta(RICHIESTA* richiesta,int id_partita,GIOCATORE*giocatore1,
         send_success_message(0, giocatore1->socket, "errore");
         send_success_message(0, giocatore2->socket, "errore");
         return;
-    }else{
+    }
+    else if(giocatore2->stato != IN_HOME){
+        send_success_message(0, giocatore1->socket, "errore, il giocatore è impegnato in un'altra partita");
+        return;
+    }
+    else{
         send_success_message(1, giocatore2->socket, "la tua richiesta è stata accettata");
         send_success_message(1, giocatore1->socket, "stai entrando in game");
         //qui da segmentation fault
@@ -98,11 +103,7 @@ void accetta_richiesta(RICHIESTA* richiesta,int id_partita,GIOCATORE*giocatore1,
 
 
     }
-    pthread_t game_thread;
-    pthread_create(&game_thread, NULL, handle_game, partita);
-    pthread_detach(game_thread); // Stacca il thread per evitare memory leak
-    printf("Partita %d accettata tra %s e %s\n", id_partita, giocatore1->nome, giocatore2->nome);
-    fflush(stdout);
+    
     
     
 }
@@ -115,20 +116,7 @@ Durante ogni turno, il gioco può essere gestito in modo interattivo, ad esempio
 Controllare che chi effettua la mossa sia il giocatore giusto, in base al turno corrente.
 Ad ogni iterazione bisogna controllare se uno dei due giocatori non è più connesso bisogna dare la vittoria all'altro giocatore.
 */
-void *handle_game(void *arg) {
-    GAME *game = (GAME *)arg;
-    if (game == NULL) {
-        printf("Errore: partita non valida\n");
-        return NULL;
-    }
-    game->stato_partita=IN_CORSO;// Imposta lo stato in corso 
 
-    // Ogni iterazione rappresenta un turno della partita
-    while (1) {
-        printf("Turno %d per la partita %d\n", game->turno, game->id);
-        fflush(stdout);
-    }
-}
 void rifiuta_richiesta(RICHIESTA* richiesta,int id_partita,GIOCATORE*giocatore1 ,GIOCATORE* giocatore2){
     pthread_mutex_lock(&lock);
     pthread_mutex_lock(&gameListLock);
