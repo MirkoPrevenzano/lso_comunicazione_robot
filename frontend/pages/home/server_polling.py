@@ -16,7 +16,7 @@ class ServerPollingManager:
         self.message_handlers = {
             "/new_request": self._handle_new_request,
             "/remove_request": self._handle_remove_request,
-            "request_accepted": self._handle_request_accepted,
+            "/accept_request": self._handle_request_accepted,
             "/decline_request": self._handle_request_declined
         }
     
@@ -47,11 +47,22 @@ class ServerPollingManager:
                 print(f"📨 Ricevuti {len(messages)} messaggi dal server")
                 for response in messages:
                     try:
-                        data = json.loads(response)
+                        # ✅ response è già un dizionario parsato da client_network.py
+                        if isinstance(response, dict):
+                            data = response  # Usa direttamente il dizionario
+                        elif isinstance(response, str):
+                            data = json.loads(response)  # Parsa solo se è una stringa
+                        else:
+                            print(f"❌ Tipo messaggio non supportato: {type(response)}")
+                            continue
+                            
                         self._handle_server_message(data)
                         print(f"📨 Messaggio server processato: {data.get('path', 'unknown')}")
-                    except json.JSONDecodeError:
+                    except json.JSONDecodeError as e:
                         print(f"❌ Errore parsing JSON dal server: {response}")
+                        print(f"❌ Errore: {e}")
+                    except Exception as e:
+                        print(f"❌ Errore generico nel processare messaggio: {type(e).__name__}: {e}")
         except Exception as e:
             print(f"❌ Errore polling server: {type(e).__name__}: {e}")
         
@@ -61,7 +72,13 @@ class ServerPollingManager:
     
     def _handle_server_message(self, data):
         """Gestisce i messaggi ricevuti dal server usando il pattern handler."""
+        print(f"🔍 DEBUG: Ricevuto messaggio dal server: {data}")
         message_type = data.get("path") or data.get("type")
+        
+        # ✅ Ignora i messaggi di risposta alle partite (senza path)
+        if not message_type and "partite" in data:
+            print(f"📨 Messaggio risposta partite ignorato: {data}")
+            return
         
         print(f"🔍 DEBUG: Gestione messaggio tipo '{message_type}' con dati: {data}")
         
@@ -87,14 +104,23 @@ class ServerPollingManager:
         player_id = data.get('player_id')
         game_id = data.get('game_id')
         
+        print(f"🗑️ DEBUG: Handling remove_request - player_id={player_id}, game_id={game_id}")
+        print(f"🗑️ DEBUG: Richieste ricevute prima rimozione: {len(self.home_page.request_manager.received_requests)}")
+        for i, req in enumerate(self.home_page.request_manager.received_requests):
+            print(f"🗑️ DEBUG: Richiesta {i}: {req}")
+        
         # Rimuovi la richiesta dalla lista locale usando player_id e game_id
         self.home_page.request_manager.remove_received_request(player_id, game_id)
         
-        # Aggiorna UI se siamo nella vista richieste ricevute
-        if self.home_page.current_view == "received_requests":
-            self.home_page.update_received_requests()
-            
-        print(f"🗑️ Richiesta annullata da {data.get('mittente')} per partita {game_id}")
+        print(f"🗑️ DEBUG: Richieste ricevute dopo rimozione: {len(self.home_page.request_manager.received_requests)}")
+        for i, req in enumerate(self.home_page.request_manager.received_requests):
+            print(f"🗑️ DEBUG: Richiesta {i}: {req}")
+        
+        # ✅ Non aggiornare l'UI qui se già gestito dal request_manager
+        # Il request_manager chiama automaticamente _update_ui_if_needed
+        
+        mittente_name = data.get('player_name', data.get('mittente', f'Player{player_id}'))
+        print(f"🗑️ Richiesta annullata da {mittente_name} per partita {game_id}")
     
     def _handle_request_accepted(self, data):
         """Gestisce partita iniziata"""
@@ -113,7 +139,7 @@ class ServerPollingManager:
     
     def _handle_request_declined(self, data):
         """Gestisce richiesta rifiutata"""
-        print("❌ Richiesta rifiutata dal server")
+        print("❌ Richiesta rifiuptata dal server")
         game_id = data.get('game_id')
         self.home_page.request_manager.update_sent_request_status(game_id, 'declined')
         print(f"❌ game:{game_id} rifiutata")

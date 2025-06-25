@@ -63,7 +63,6 @@ class HomeActions:
             response = send_to_server("/accept_request", {
                 "player_id": player_id,
                 "game_id": game_id,
-                "nickname": self.home_page.controller.shared_data['nickname']
             })
             
             data = json.loads(response)
@@ -75,13 +74,10 @@ class HomeActions:
                 print(f"✅ Richiesta player:{player_id} game:{game_id} accettata e rimossa dalla lista")
                 
                 # Vai alla GamePage se fornito game_id
-                if data.get('game_id'):
-                    self.home_page.controller.shared_data['game_id'] = data.get('game_id')
-                    self.home_page.stop_periodic_update_content()
-                    self.home_page.server_polling.stop_listener()
-                    self.home_page.controller.show_frame("GamePage")
-                else:
-                    self.home_page.update_received_requests()
+                self.home_page.controller.shared_data['game_id'] = data.get('game_id')
+                self.home_page.stop_periodic_update_content()
+                self.home_page.server_polling.stop_listener()
+                self.home_page.controller.show_frame("GamePage")
             else:
                 self.home_page.welcome_label.config(text="Errore nell'accettare la richiesta", foreground="red")
                 

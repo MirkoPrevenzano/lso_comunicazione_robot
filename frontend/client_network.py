@@ -1,12 +1,17 @@
+"""Client di rete con gestione select() per comunicazione non-bloccante"""
+
 import socket
 import json
 import select
 import time
 
+BUFFER_SIZE = 4096
+
 class SelectBasedClient:
     def __init__(self):
         self.socket = None
         self.connected = False
+        self.receive_buffer = ""  # ✅ Buffer come attributo dell'istanza
         
     def connect(self):
         """Stabilisce la connessione principale"""
@@ -52,43 +57,74 @@ class SelectBasedClient:
             raise
                 
     def check_server_messages(self):
-        """Controlla se ci sono messaggi dal server (non bloccante)"""
+        """Riceve messaggi dal server con gestione del buffer migliorata"""
         if not self.connected or not self.socket:
             return []
             
-        messages = []
         try:
-            # Continua a leggere finché ci sono dati disponibili
+            ready, _, _ = select.select([self.socket], [], [], 0)
+            if not ready:
+                return []
+            
+            new_data = self.socket.recv(BUFFER_SIZE).decode('utf-8')
+            if not new_data:
+                return []
+            
+            self.receive_buffer += new_data
+            print(f"🔍 DEBUG: Buffer ricevuto: {repr(new_data)}")
+            print(f"🔍 DEBUG: Buffer totale: {repr(self.receive_buffer)}")
+            
+            messages = []
             while True:
-                # Usa select con timeout 0 per controllo non bloccante
-                ready, _, _ = select.select([self.socket], [], [], 0)
-                
-                if ready:
-                    data = self.socket.recv(4096).decode()
-                    if not data:
-                        break  # Connessione chiusa
+                try:
+                    # Trova la fine del primo messaggio JSON completo
+                    brace_count = 0
+                    end_pos = -1
                     
-                    # Potrebbe esserci più di un messaggio JSON nel buffer
-                    # Dividi per newline se i messaggi sono separati così
-                    lines = data.strip().split('\n')
-                    for line in lines:
-                        if line.strip():
-                            messages.append(line.strip())
-                else:
-                    break  # Nessun dato disponibile
+                    for i, char in enumerate(self.receive_buffer):
+                        if char == '{':
+                            brace_count += 1
+                        elif char == '}':
+                            brace_count -= 1
+                            if brace_count == 0:
+                                end_pos = i + 1
+                                break
                     
+                    if end_pos == -1:
+                        break
+                    
+                    # Estrai il messaggio JSON completo
+                    json_message = self.receive_buffer[:end_pos].strip()
+                    self.receive_buffer = self.receive_buffer[end_pos:].strip()
+                    
+                    if json_message:
+                        print(f"🔍 DEBUG: Messaggio estratto: {repr(json_message)}")
+                        try:
+                            parsed = json.loads(json_message)
+                            messages.append(parsed)
+                            print(f"🔍 DEBUG: Messaggio parsato correttamente: {parsed}")
+                        except json.JSONDecodeError as e:
+                            print(f"❌ DEBUG: Errore parsing messaggio: {json_message}")
+                            print(f"❌ DEBUG: Errore: {e}")
+                    
+                except Exception as e:
+                    print(f"❌ DEBUG: Errore nel loop di parsing: {e}")
+                    break
+            
+            print(f"🔍 DEBUG: Messaggi restituiti ({len(messages)}): {messages}")
+            return messages
+            
         except Exception as e:
-            print(f"Errore ricezione: {e}")
-            
-        return messages
-            
+            print(f"❌ Errore in check_server_messages: {type(e).__name__}: {e}")
+            return []
+    
     def close(self):
         """Chiude la connessione"""
         self.connected = False
         if self.socket:
             self.socket.close()
 
-# Nessuna istanza globale - ogni chiamata crea la sua connessione
+# Istanza globale del client
 _client = None
 
 def connect_to_server():
@@ -107,10 +143,10 @@ def send_to_server(path, body):
     return _client.send_to_server(path, body)
 
 def receive_from_server():
-    """Funzione di compatibilità per ricezione (safe)"""
+    """Funzione di compatibilità per ricezione"""
     global _client
     if _client is None:
-        return None
+        return []
     return _client.check_server_messages()
 
 def close_connections():

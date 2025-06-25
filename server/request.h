@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include "player.h"
 
+
 enum StatoRichiesta {
     RICHIESTA_IN_ATTESA,
     RICHIESTA_ACCETTATA,
@@ -26,6 +27,8 @@ void remove_request_by_player(GIOCATORE* giocatore);
 RICHIESTA * searchRichiesta(int id_partita, GIOCATORE* giocatore);
 //void remove_request_by_GAME(GAME *partita);
 void remove_request_by_GAME(int id_partita);
+void *handle_game(void *);
+
 
 
 #endif // REQUEST_H

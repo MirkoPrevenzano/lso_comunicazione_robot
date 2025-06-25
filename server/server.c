@@ -46,7 +46,8 @@ bool queue_add(GIOCATORE*giocatore_add){
             trovato = true;
             numero_connessioni++;
 			Giocatori[i] = giocatore_add;
-            Giocatori[i]->id = i; 
+            Giocatori[i]->id = i;
+            Giocatori[i]->stato = IN_HOME; 
 		}
 	}
 
@@ -255,7 +256,7 @@ void * checkRouterThread(void *arg) {
     fflush(stdout);
     // Inizializza il buffer
     memset(buffer, 0, sizeof(buffer));
-    while (!leave_flag) {
+    while (!leave_flag && nuovo_giocatore->stato == IN_HOME) {
         int size = read(socket_fd, buffer, BUFFER_SIZE - 1);
 
         if (size <= 0) {

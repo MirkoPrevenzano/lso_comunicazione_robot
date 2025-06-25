@@ -78,16 +78,26 @@ class GamePage(tk.Frame):
         risposta = receive_from_server()
         if risposta:
             try:
-                data = json.loads(risposta)
-                if data.get("type") == "update_game" or data.get("type") == "start_game":
-                    self.aggiorna_dati(data.get("game_data", {}))
-                    self.gestisci_turno(data.get("turno", 0))
-                elif data.get("type") == "left_player":
-                    messagebox.showinfo("Info", "L'avverario ha lasciato la partita.")
-                    self.controller.show_frame("HomePage")
-                elif data.get("type") == "error":
-                    messagebox.showerror("Errore", data.get("error", "Errore sconosciuto"))
-                    self.controller.show_frame("HomePage")
+                # ✅ receive_from_server() ora restituisce una lista di dizionari
+                for response in risposta:
+                    if isinstance(response, dict):
+                        data = response  # Usa direttamente il dizionario
+                    elif isinstance(response, str):
+                        data = json.loads(response)  # Parsa solo se è una stringa
+                    else:
+                        print(f"❌ Tipo messaggio non supportato in GamePage: {type(response)}")
+                        continue
+                    
+                    if data.get("type") == "update_game" or data.get("type") == "start_game":
+                        self.aggiorna_dati(data.get("game_data", {}))
+                        self.gestisci_turno(data.get("turno", 0))
+                    elif data.get("type") == "left_player":
+                        messagebox.showinfo("Info", "L'avverario ha lasciato la partita.")
+                        self.controller.show_frame("HomePage")
+                    elif data.get("type") == "error":
+                        messagebox.showerror("Errore", data.get("error", "Errore sconosciuto"))
+                        self.controller.show_frame("HomePage")
+                        
             except json.JSONDecodeError:
                 print("Errore nella decodifica della risposta JSON.")
             except Exception as e:

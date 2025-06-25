@@ -24,10 +24,26 @@ class RequestManager:
     
     def remove_received_request(self, player_id, game_id):
         """Rimuove una richiesta ricevuta."""
+        print(f"🔍 DEBUG: Tentativo rimozione player_id={player_id}, game_id={game_id}")
+        print(f"🔍 DEBUG: Lista attuale ({len(self.received_requests)} richieste):")
+        for i, req in enumerate(self.received_requests):
+            print(f"🔍 DEBUG:   {i}: {req}")
+        
+        initial_count = len(self.received_requests)
+        
         self.received_requests = [
             r for r in self.received_requests 
             if not (r['player_id'] == player_id and r['game_id'] == game_id)
         ]
+        
+        final_count = len(self.received_requests)
+        removed_count = initial_count - final_count
+        
+        print(f"🔍 DEBUG: Rimosse {removed_count} richieste (da {initial_count} a {final_count})")
+        print(f"🔍 DEBUG: Lista finale:")
+        for i, req in enumerate(self.received_requests):
+            print(f"🔍 DEBUG:   {i}: {req}")
+        
         self._update_ui_if_needed("received_requests")
         print(f"🗑️ Rimossa richiesta ricevuta: player={player_id}, game={game_id}")
     

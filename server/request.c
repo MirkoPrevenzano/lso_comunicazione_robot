@@ -81,21 +81,54 @@ void accetta_richiesta(RICHIESTA* richiesta,int id_partita,GIOCATORE*giocatore1,
         pthread_mutex_lock(&gameListLock);
         remove_request_by_player(giocatore1);
         remove_request_by_player(giocatore2);
+        giocatore1->stato = IN_GIOCO; // Imposta lo stato del giocatore come in gioco
+        giocatore2->stato = IN_GIOCO; // Imposta lo stato del giocatore come in gioco
+        partita->giocatoreParticipante[0] = giocatore1; // Assegna il primo giocatore
+        partita->giocatoreParticipante[1] = giocatore2; // Assegna il secondo giocatore
         //eliminare tutte le richieste
+
         remove_request_by_GAME(id_partita);
 
+       
         pthread_mutex_unlock(&gameListLock);
+        //inviare messaggio di successo e info partita ai giocatori
 
-        //passare secondo giocatore alla partita
+        //{path: "/accept_request", body: {game_id: id_partita, player_id: giocatore2->id, "simbolo": X, "nickname_partecipante": giocatore2->nome, "game_data": partita->griglia}}
+        //{path: "/accept_request", body: {game_id: id_partita, player_id: giocatore1->id, "simbolo": O, "nickname_partecipante": giocatore1->nome, "game_data": partita->griglia}}
+
+
     }
-    pthread_t tid1, tid2;
-
-    pthread_create(&tid1, NULL, GamePlayer1, partita);
-    pthread_create(&tid2, NULL, GamePlayer2, partita);
-
+    pthread_t game_thread;
+    pthread_create(&game_thread, NULL, handle_game, partita);
+    pthread_detach(game_thread); // Stacca il thread per evitare memory leak
+    printf("Partita %d accettata tra %s e %s\n", id_partita, giocatore1->nome, giocatore2->nome);
+    fflush(stdout);
+    
     
 }
 
+/*
+entrando in questa funzione, entrambi i giocatori si trovano nel client in partita, quindi si può iniziare a giocare
+La funzione viene eseguita in un unico thread a partita.
+La partita inizia con lo stato IN_CORSO e continua fino a quando non viene raggiunto un esito finale (vittoria o pareggio).
+Durante ogni turno, il gioco può essere gestito in modo interattivo, ad esempio ricevendo mosse dai giocatori e aggiornando lo stato della griglia.
+Controllare che chi effettua la mossa sia il giocatore giusto, in base al turno corrente.
+Ad ogni iterazione bisogna controllare se uno dei due giocatori non è più connesso bisogna dare la vittoria all'altro giocatore.
+*/
+void *handle_game(void *arg) {
+    GAME *game = (GAME *)arg;
+    if (game == NULL) {
+        printf("Errore: partita non valida\n");
+        return NULL;
+    }
+    game->stato_partita=IN_CORSO;// Imposta lo stato in corso 
+
+    // Ogni iterazione rappresenta un turno della partita
+    while (1) {
+        printf("Turno %d per la partita %d\n", game->turno, game->id);
+        fflush(stdout);
+    }
+}
 void rifiuta_richiesta(RICHIESTA* richiesta,int id_partita,GIOCATORE*giocatore1 ,GIOCATORE* giocatore2){
     pthread_mutex_lock(&lock);
     pthread_mutex_lock(&gameListLock);

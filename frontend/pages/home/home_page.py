@@ -209,12 +209,29 @@ class HomePage(tk.Frame):
         """Aggiorna la lista delle partite in attesa"""
         try:
             print("🔄 Richiesta partite in attesa...")
-            games = send_to_server("/waiting_games", {})
-            print(f"🔄 Ricevuta risposta: {games}")
+            response = send_to_server("/waiting_games", {})
+            print(f"🔄 Ricevuta risposta: {response}")
             
             try:
-                games = json.loads(games)
-                games = games.get("partite", [])
+                data = json.loads(response)
+                
+                # ✅ CONTROLLA SE LA RISPOSTA È UNA RICHIESTA PUSH INVECE CHE PARTITE
+                if data.get("path") == "/new_request":
+                    print(f"🔔 Ricevuta richiesta push nella risposta: {data}")
+                    # Gestisci come richiesta push
+                    new_request = {
+                        'game_id': data.get('game_id'),
+                        'player_id': data.get('player_id'),
+                        'mittente': data.get('player_name', 'Sconosciuto'),
+                    }
+                    self.request_manager.add_received_request(new_request)
+                    print(f"🔔 Richiesta 0 aggiunta dalla risposta diretta!")
+                    
+                    # Riprova a richiedere le partite
+                    response = send_to_server("/waiting_games", {})
+                    data = json.loads(response)
+                
+                games = data.get("partite", [])
                 print(f"🔄 Partite parsate: {games}")                    
             except json.JSONDecodeError as e:
                 print(f"❌ Errore parsing JSON: {e}")
