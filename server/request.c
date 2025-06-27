@@ -98,8 +98,8 @@ void accetta_richiesta(RICHIESTA* richiesta,int id_partita,GIOCATORE*giocatore1,
         pthread_mutex_unlock(&gameListLock);
         //inviare messaggio di successo e info partita ai giocatori
 
-        //{path: "/accept_request", body: {game_id: id_partita, player_id: giocatore2->id, "simbolo": X, "nickname_partecipante": giocatore2->nome, "game_data": partita->griglia}}
-        //{path: "/accept_request", body: {game_id: id_partita, player_id: giocatore1->id, "simbolo": O, "nickname_partecipante": giocatore1->nome, "game_data": partita->griglia}}
+        //{path: "/join_game", body: {game_id: id_partita, player_id: giocatore2->id, "simbolo": X, "nickname_partecipante": giocatore2->nome, "game_data": partita->griglia}}
+        //{path: "/join_game", body: {game_id: id_partita, player_id: giocatore1->id, "simbolo": O, "nickname_partecipante": giocatore1->nome, "game_data": partita->griglia}}
 
 
     }

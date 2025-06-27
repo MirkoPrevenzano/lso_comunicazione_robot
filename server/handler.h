@@ -27,11 +27,10 @@ void joinLobby(int*leave_flag,cJSON*body,GIOCATORE*nuovo_giocatore);
 
 GAME* searchPartitaById(int id);
 
-//void handlerGames(int *leave_flag,int*socket_nuovo,char*buffer,GIOCATORE *giocatore);
+void HandlerInviaMovesPartita(GIOCATORE*giocatore,GAME*partita);
 
-//void partecipa_partita_json(int *leave_flag,int*socket_nuovo,char*buffer,cJSON*body,GIOCATORE *giocatore);
+void handler_game_response(GIOCATORE*giocatore,GAME*partita);
 
-//void handlerRiceviJsonMossa(int *leave_flag,char*buffer,GIOCATORE *giocatore,GAME*partita);
 
 
 #endif
