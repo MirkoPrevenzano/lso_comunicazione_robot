@@ -36,7 +36,6 @@ extern int numero_partite; // Numero di partite attive
 extern GAME* Partite[MAX_GAME]; // Array di puntatori a partite
 extern GIOCATORE* Giocatori[MAX_GIOCATORI]; // Array di puntatori a giocatori
 
-extern pthread_mutex_t lock; // Mutex per proteggere l'accesso alle risorse condivise
 extern pthread_mutex_t playerListLock; // Mutex per proteggere l'accesso alla lista dei giocatori
 extern pthread_mutex_t gameListLock; // Mutex per proteggere l'accesso alla lista delle partite
 

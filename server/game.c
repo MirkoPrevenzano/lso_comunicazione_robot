@@ -148,7 +148,6 @@ void send_declined_request_message(int id_partita, GIOCATORE* giocatore) {
 }
 
 void aggiungi_richiesta(int id_partita, GIOCATORE* giocatore) {
-    pthread_mutex_lock(&lock);
     pthread_mutex_lock(&gameListLock);
     
     // Controllo se id_partita è valido
@@ -156,7 +155,6 @@ void aggiungi_richiesta(int id_partita, GIOCATORE* giocatore) {
         printf("ID partita non valido: %d\n", id_partita);
         send_success_message(0, giocatore->socket, "Partita non trovata");
         pthread_mutex_unlock(&gameListLock);
-        pthread_mutex_unlock(&lock);
         return;
     }
 
@@ -167,7 +165,6 @@ void aggiungi_richiesta(int id_partita, GIOCATORE* giocatore) {
         printf("Numero massimo di richieste raggiunto per la partita %d\n", id_partita);
         send_success_message(0, giocatore->socket, "Numero massimo di richieste raggiunto");
         pthread_mutex_unlock(&gameListLock);
-        pthread_mutex_unlock(&lock);
         return;
     }
 
@@ -177,7 +174,6 @@ void aggiungi_richiesta(int id_partita, GIOCATORE* giocatore) {
             printf("Il giocatore %s ha già una richiesta in questa partita\n", giocatore->nome);
             send_success_message(0, giocatore->socket, "Richiesta già esistente");
             pthread_mutex_unlock(&gameListLock);
-            pthread_mutex_unlock(&lock);
             return;
         }
     }
@@ -187,7 +183,6 @@ void aggiungi_richiesta(int id_partita, GIOCATORE* giocatore) {
         printf("La partita %d è già in corso, non è possibile aggiungere richieste\n", id_partita);
         send_success_message(0, giocatore->socket, "Partita già in corso");
         pthread_mutex_unlock(&gameListLock);
-        pthread_mutex_unlock(&lock);
         return;
     }
    
@@ -214,7 +209,6 @@ void aggiungi_richiesta(int id_partita, GIOCATORE* giocatore) {
     }
     
     pthread_mutex_unlock(&gameListLock);
-    pthread_mutex_unlock(&lock);
 }
 
 void invia_richiesta_proprietario(GAME* partita, GIOCATORE* giocatore_richiedente) {
@@ -249,7 +243,6 @@ void invia_richiesta_proprietario(GAME* partita, GIOCATORE* giocatore_richiedent
 }
 
 void rimuovi_richiesta(int id_partita, GIOCATORE* giocatore) {
-    pthread_mutex_lock(&lock);
     pthread_mutex_lock(&gameListLock);
     
     // Controllo se id_partita è valido
@@ -257,7 +250,6 @@ void rimuovi_richiesta(int id_partita, GIOCATORE* giocatore) {
         printf("ID partita non valido: %d\n", id_partita);
         send_success_message(0, giocatore->socket, "Partita non trovata");
         pthread_mutex_unlock(&gameListLock);
-        pthread_mutex_unlock(&lock);
         return;
     }
 
@@ -299,7 +291,6 @@ void rimuovi_richiesta(int id_partita, GIOCATORE* giocatore) {
     }
     
     pthread_mutex_unlock(&gameListLock);
-    pthread_mutex_unlock(&lock);
 }
 // fin qui tutto va bene
 // MODIFICA: Aggiunto parametro GIOCATORE per poter inviare risposta

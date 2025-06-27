@@ -182,8 +182,6 @@ RICHIESTA * searchRichiesta(int id_partita, GIOCATORE* giocatore){
     // Controllo se id_partita è valido
     if(id_partita < 0 || id_partita >= MAX_GAME || Partite[id_partita] == NULL) {
         printf("ID partita non valido: %d\n", id_partita);
-        pthread_mutex_unlock(&gameListLock);
-        pthread_mutex_unlock(&lock);
         return NULL;
     }
 
