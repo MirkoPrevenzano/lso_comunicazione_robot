@@ -38,7 +38,7 @@ typedef struct game{
     RICHIESTA * richieste [MAX_GIOCATORI-1];
     STATO stato_partita;
     int numero_richieste;
-    int turno;
+    int turno;//turno = 0 -> turno del giocatorePartecipante[0]
     sem_t semaforo;
 } GAME;
 
@@ -52,28 +52,17 @@ void aggiungi_richiesta(int, GIOCATORE*);
 void rimuovi_richiesta(int , GIOCATORE*);
 void invia_richiesta_proprietario(GAME* , GIOCATORE* );
 
-void GameStartPlayer1(int*leave_flag,char*buffer,GAME*nuova_partita);
-void GameStartPlayer2(int*leave_flag,GAME*nuova_partita,GIOCATORE*Giocatore2);
-//void GamePlayer1(int *leave_flag,int*leave_game,char*buffer,GAME*nuova_partita,GIOCATORE*Giocatore1);
-void * GamePlayer1(void *);
-//void GamePlayer2(int *leave_flag,int*leave_game,GAME*nuova_partita,GIOCATORE*Giocatore2);
-void * GamePlayer2(void *);
-
-
 cJSON* read_with_timeout(int sockfd, char* buffer, size_t len, int timeout_sec,int*leave_game);
 void gestioneRichiestaJSONuscita(cJSON* json,int*leave_flag,int*leave_game, GIOCATORE *);
 void aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario);
 void remove_game_by_player_id(int id);
 void sendSuccessNewGame(int success, GIOCATORE*giocatore, int id_partita);
 void sendJoinGame(GIOCATORE*giocatore,GAME*partita);
-//GAME *searchPartitaById(int giocatore_id); //farei file player.h
 
-//bool controlla_vittoria(GAME*partita,int giocatore,int*esito);
-//bool controlla_pareggio(GAME*partita,int esito);
-
-//void inviaJsonMatrice(GAME*partita,GIOCATORE*giocatore);
-//void RiceviJsonMossa(int*leave_game,char*buffer,GAME*partita,GIOCATORE*giocatore);
-//void ModificaArrayTris(int i,int j,int giocatore,GAME*partita);
-//void inviaEsitoPartita(int*esito,GAME*partita);
+void aggiorna_partita(GAME*partita,GIOCATORE*giocatore,int col,int row);
+bool aggiorna_griglia(GAME*partita,GIOCATORE*giocatore,int col,int row,int turno);
+void switchTurn(GAME*partita);
+Esito verifica_esito_partita(GAME*partita);
+void InviaEsito(GAME* partita,Esito esito);
 
 #endif

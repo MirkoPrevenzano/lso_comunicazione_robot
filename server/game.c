@@ -336,49 +336,6 @@ void gestioneRichiestaJSONuscita(cJSON*json,int*leave_flag,int*leave_game,GIOCAT
     }
 } 
 
-void GameStartPlayer1(int*leave_flag,char*buffer,GAME*nuova_partita){
-    cJSON* json=NULL;
-    int leave_game=0;
-    
-    //attendo il secondo giocatore
-    // MODIFICA: Aggiunta protezione mutex per accesso a giocatoreParticipante[1]
-    pthread_mutex_lock(&gameListLock);
-    int has_player2 = (nuova_partita->giocatoreParticipante[1] != NULL);
-    pthread_mutex_unlock(&gameListLock);
-    
-    while(!(*leave_flag) && !(leave_game) && !has_player2){
-    
-        json = read_with_timeout(nuova_partita->giocatoreParticipante[0]->socket,buffer,1024,10,&leave_game);
-        // MODIFICA: Aggiunto parametro giocatore per poter inviare risposta
-        gestioneRichiestaJSONuscita(json,leave_flag,&leave_game,nuova_partita->giocatoreParticipante[0]);
-        
-        // MODIFICA: Ricontrolla presenza giocatore 2 ad ogni iterazione
-        pthread_mutex_lock(&gameListLock);
-        has_player2 = (nuova_partita->giocatoreParticipante[1] != NULL);
-        pthread_mutex_unlock(&gameListLock);
-    }
-    printf("Esco dalla lettura con leave_flag: %d, leave_game: %d\n", *leave_flag, leave_game);
-    fflush(stdout);
-
-
-    if(*leave_flag==1 || leave_game==1){
-        rimuovi_game_queue(nuova_partita);
-        return ;
-    }
-    printf("Giocatore 1 ha iniziato la partita con id: %d\n", nuova_partita->id);
-    fflush(stdout);
-    
-    sendJoinGame(nuova_partita->giocatoreParticipante[1],nuova_partita);
-    //GamePlayer1(leave_flag,&leave_game,buffer,nuova_partita,nuova_partita->giocatoreParticipante[0]);
-    
-    printf("Giocatore 1 ha terminato la partita con id: %d\n", nuova_partita->id);
-    fflush(stdout);
-    //TO-DO il cambio di properitario
-    rimuovi_game_queue(nuova_partita);
-    
-}
-
-
 cJSON* read_with_timeout(int sockfd, char* buffer, size_t len, int timeout_sec,int*leave_game) {
     // Funzione per leggere dati da un socket con timeout
     //fd_set: insieme di descrittori di file
@@ -467,28 +424,6 @@ void sendJoinGame(GIOCATORE*giocatore2, GAME* partita){
     fflush(stdout);
 }
 
-void GameStartPlayer2(int*leave_flag,GAME*nuova_partita,GIOCATORE*giocatore2){
-    int leave_game=0;
-    pthread_mutex_lock(&gameListLock);
-    //fai di nuovo controllo???
-    if(nuova_partita->giocatoreParticipante[1]==NULL){
-        nuova_partita->giocatoreParticipante[1]=giocatore2;
-      
-        pthread_mutex_unlock(&gameListLock);
-        sendSuccessNewGame(1,giocatore2,nuova_partita->id);
-        //invio messaggio di unione partita al giocatore 1:
-       // GamePlayer2(leave_flag,&leave_game,nuova_partita,giocatore2);
-
-
-    }else{
-        // MODIFICA: Rimosso *leave_flag=1 che causava uscita impropria
-        sendSuccessNewGame(0,giocatore2,-1);
-        pthread_mutex_unlock(&gameListLock);
-
-    }
-
-
-}
 
 void sendSuccessNewGame(int success, GIOCATORE*giocatore, int id_partita){
     cJSON *root = cJSON_CreateObject();
@@ -499,122 +434,62 @@ void sendSuccessNewGame(int success, GIOCATORE*giocatore, int id_partita){
     cJSON_Delete(root);
     free(msg);
 }
-/*
-void GamePlayer1(int *leave_flag,int*leave_game,char*buffer,GAME*nuova_partita,GIOCATORE*Giocatore1){
-        printf("sono in partita: %s\n", Giocatore1->nome);
-        fflush(stdout);
-  
-        while((!*leave_flag)&&(!*leave_game)&& (nuova_partita->esito==0)){
-           
-            if(nuova_partita->turno!=0){
-                   sem_wait(&(nuova_partita->semaforo));   
-            }
-            
-            // MODIFICA: Aggiunto controllo condizioni uscita dopo sem_wait
-            if(*leave_flag || *leave_game || nuova_partita->esito != 0){
-                break;
-            }
-            
-            //inviare matrice del tris al giocatore 1
-            
 
-            //controllo se la partita è terminata oppure giocatore 2 è uscito
-            //inviare nuova mossa o uscire 
 
-            //TO-DO gioco 
-
-            nuova_partita->turno=1;//cambio turno
-            sem_post(&(nuova_partita->semaforo)); 
+void aggiorna_partita(GAME*partita,GIOCATORE*giocatore,int col,int row){
+    sem_wait(&(partita->semaforo));
+    int turno = partita->turno;
+    if(partita->giocatoreParticipante[turno]!=giocatore){
+        send_success_message(0,giocatore->socket,"non è il tuo turno");
+        sem_post(&(partita->semaforo));
+        return;
+    }else{
+        Esito esito= verifica_esito_partita(partita);
+        if(esito!=NESSUN_ESITO){
+            InviaEsito(partita,esito);
+            sem_post(&(partita->semaforo));
         }
-}*/
-
-void * GamePlayer1(void *arg){
-        GAME* nuova_partita = (GAME*)arg;
-        GIOCATORE* Giocatore1 = nuova_partita->giocatoreParticipante[0];
-        // MODIFICA: Aggiunto controllo se Giocatore1 è
-        printf("sono in partita: %s\n", Giocatore1->nome);
-        fflush(stdout);
-        int leave_game=0;
-        while((!leave_game)&& (nuova_partita->esito==0)){
-           
-            if(nuova_partita->turno!=0){
-                   sem_wait(&(nuova_partita->semaforo));   
-            }
-            
-            // MODIFICA: Aggiunto controllo condizioni uscita dopo sem_wait
-            if(leave_game || nuova_partita->esito != 0){
-                break;
-            }
-            
-            //inviare matrice del tris al giocatore 1
-            
-
-            //controllo se la partita è terminata oppure giocatore 2 è uscito
-            //inviare nuova mossa o uscire 
-
-            //TO-DO gioco 
-
-            nuova_partita->turno=1;//cambio turno
-            sem_post(&(nuova_partita->semaforo)); 
-        }
+        bool success = aggiorna_griglia(partita,giocatore,col,row,turno);
+        if(success)
+            switchTurn(partita);
+    }
+    sem_post(&(partita->semaforo));
 }
-/*
-void GamePlayer2(int *leave_flag,int*leave_game,GAME*nuova_partita,GIOCATORE*Giocatore2){
-        //stampa("sono nel game player 2\n");
-        //fflush(stdout);
-        printf("sono in partita: %s\n", Giocatore2->nome);
-        fflush(stdout);
-        while((!*leave_flag)&&(!*leave_game) && (nuova_partita->esito==0)){
-            if(nuova_partita->turno!=1){
-                   sem_wait(&(nuova_partita->semaforo));   
-            }
-            
-            // MODIFICA: Aggiunto controllo condizioni uscita dopo sem_wait
-            if(*leave_flag || *leave_game || nuova_partita->esito != 0){
-                break;
-            }
-            
-            //inviare matrice del tris al giocatore 2
+
+void  switchTurn(GAME*partita){
+    switch(partita->turno){
+        case 0:
+        partita->turno=1;
+        break;
+
+        case 1:
+        partita->turno=0;
+        break;
+    }
 
 
-            //controllo se la partita è terminata oppure giocatore 1 è uscito
-            //inviare nuova mossa o uscire
+}
 
-            //TO-DO gioco 
+bool aggiorna_griglia(GAME*partita,GIOCATORE*giocatore,int col,int row,int turno){
+    pthread_mutex_lock(&gameListLock);
+    //usare un nuovo mutex_lock per le partite , sto mutex viene usato sempre
+    if(partita->griglia[col][row]!=0){
+        send_success_message(0,giocatore->socket,"casella già occupata");
+        pthread_mutex_unlock(&gameListLock);
+        return false;
+    }else{
+        partita->griglia[col][row]=turno;
+        printf("casella aggiornata con successo");
+        send_success_message(1,giocatore->socket,"casella aggiornata con successo");
+        pthread_mutex_unlock(&gameListLock);
+        return true;
+    }
 
-            nuova_partita->turno=0;//cambio turno
-            sem_post(&(nuova_partita->semaforo)); 
-        }
-}*/
+}
 
-void *GamePlayer2(void *arg){
-        GAME* nuova_partita = (GAME*)arg;
-        GIOCATORE* Giocatore2 = nuova_partita->giocatoreParticipante[1];
-        // MODIFICA: Aggiunto controllo se Giocatore2 è
-        printf("sono nel game player 2\n");
-        int*leave_game=0;
-        //fflush(stdout);
-        printf("sono in partita: %s\n", Giocatore2->nome);
-        fflush(stdout);
-        while((!leave_game) && (nuova_partita->esito==0)){
-            if(nuova_partita->turno!=1){
-                   sem_wait(&(nuova_partita->semaforo));   
-            }
-            
-            // MODIFICA: Aggiunto controllo condizioni uscita dopo sem_wait
-            if(leave_game || nuova_partita->esito != 0){
-                break;
-            }
-            
-            //inviare matrice del tris al giocatore 2
+Esito verifica_esito_partita(GAME*partita){
+    return NESSUN_ESITO;
+}
+void InviaEsito(GAME* partita,Esito esito){
 
-
-            //controllo se la partita è terminata oppure giocatore 1 è uscito
-            //inviare nuova mossa o uscire
-
-            //TO-DO gioco 
-
-            nuova_partita->turno=0;//cambio turno
-            sem_post(&(nuova_partita->semaforo)); 
-        }
 }
