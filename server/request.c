@@ -74,10 +74,7 @@ void accetta_richiesta(RICHIESTA* richiesta,int id_partita,GIOCATORE*giocatore1,
         return;
     }
     else{
-        send_success_message(1, giocatore2->socket, "la tua richiesta è stata accettata");
-        send_success_message(1, giocatore1->socket, "stai entrando in game");
         
-        pthread_mutex_lock(&gameListLock);
         printf("Accettazione della richiesta per la partita %d tra %s e %s\n", id_partita, giocatore1->nome, giocatore2->nome);
         remove_request_by_player(giocatore1);
         remove_request_by_player(giocatore2);
@@ -92,11 +89,59 @@ void accetta_richiesta(RICHIESTA* richiesta,int id_partita,GIOCATORE*giocatore1,
         decline_request_by_GAME(id_partita);
 
        
-        pthread_mutex_unlock(&gameListLock);
         //inviare messaggio di successo e info partita ai giocatori
 
-        //{path: "/join_game", body: {game_id: id_partita, player_id: giocatore2->id, "simbolo": X, "nickname_partecipante": giocatore2->nome, "game_data": partita->griglia}}
-        //{path: "/join_game", body: {game_id: id_partita, player_id: giocatore1->id, "simbolo": O, "nickname_partecipante": giocatore1->nome, "game_data": partita->griglia}}
+        //{success:1, game_id: id_partita, player_id: giocatore2->id, "simbolo": X, "nickname_partecipante": giocatore2->nome, "game_data": {TRIS:partita->griglia, turno: 0}}
+        cJSON *success_message1 = cJSON_CreateObject();
+        cJSON_AddNumberToObject(success_message1, "success", 1);
+        cJSON_AddNumberToObject(success_message1, "game_id", id_partita);
+        cJSON_AddNumberToObject(success_message1, "player_id", giocatore2->id);
+        cJSON_AddStringToObject(success_message1, "simbolo", "X");
+        cJSON_AddStringToObject(success_message1, "nickname_partecipante", giocatore2->nome);
+        cJSON *game_data1 = cJSON_CreateObject();
+        char griglia_str[10]; // 9 positions + null terminator
+        for(int i = 0; i < 3; i++) {
+            for(int j = 0; j < 3; j++) {
+                griglia_str[i*3 + j] = (char)(char)('0');
+            }
+        }
+        griglia_str[9] = '\0';
+        
+        cJSON_AddItemToObject(game_data1, "TRIS", cJSON_CreateString(griglia_str));
+        cJSON_AddNumberToObject(game_data1, "turno", partita->turno);
+        cJSON_AddItemToObject(success_message1, "game_data", game_data1);
+        char *message1 = cJSON_Print(success_message1);
+        send(giocatore1->socket, message1, strlen(message1), 0);
+        cJSON_Delete(success_message1);
+        free(message1);
+        
+
+        //{path: "/join_game", game_id: id_partita, player_id: giocatore1->id, "simbolo": O, "nickname_partecipante": giocatore1->nome, "game_data": {TRIS:partita->griglia, turno:0}}
+        cJSON *success_message2 = cJSON_CreateObject();
+        cJSON_AddStringToObject(success_message2, "path", "/game_start");
+        cJSON_AddNumberToObject(success_message2, "game_id", id_partita);
+        cJSON_AddNumberToObject(success_message2, "player_id", giocatore1->id);
+        cJSON_AddStringToObject(success_message2, "simbolo", "O");
+        cJSON_AddStringToObject(success_message2, "nickname_partecipante", giocatore1->nome);
+        cJSON *game_data2 = cJSON_CreateObject();
+        char griglia_str1[10]; // 9 positions + null terminator
+        for(int i = 0; i < 3; i++) {
+            for(int j = 0; j < 3; j++) {
+                griglia_str1[i*3 + j] = (char)('0');
+            }
+        }
+        griglia_str1[9] = '\0';
+        
+        cJSON_AddItemToObject(game_data2, "TRIS", cJSON_CreateString(griglia_str1));        cJSON_AddNumberToObject(game_data2, "turno", partita->turno);
+        cJSON_AddItemToObject(success_message2, "game_data", game_data2);
+        char *message2 = cJSON_Print(success_message2);
+        send(giocatore2->socket, message2, strlen(message2), 0);
+        cJSON_Delete(success_message2);
+        free(message2); 
+        printf("Partita %d iniziata tra %s e %s\n", id_partita, giocatore1->nome, giocatore2->nome);
+        fflush(stdout);
+        // Imposta lo stato della partita come IN_CORSO
+        partita->stato_partita = IN_CORSO;
 
 
     }
@@ -116,11 +161,11 @@ Ad ogni iterazione bisogna controllare se uno dei due giocatori non è più conn
 void rifiuta_richiesta(RICHIESTA* richiesta,int id_partita,GIOCATORE*giocatore1){
     if(richiesta == NULL){
         printf("Nessuna richiesta o gioco trovati");
-        send_success_message(0, giocatore1->socket, "errore, richiesta o partita non trovati");
+        if(giocatore1 != NULL)
+            send_success_message(0, giocatore1->socket, "errore, richiesta o partita non trovati");
         return;
     }else{
         richiesta->stato = RICHIESTA_RIFIUTATA; // Aggiorna lo stato della richiesta
-        //{path: "/decline_request", body: {game_id: id_partita}}
         send_declined_request_message(id_partita, richiesta->giocatore);
         printf("Richiesta rimossa per il giocatore %s dalla partita %d\n", richiesta->giocatore->nome, id_partita);
         if(giocatore1 != NULL) {
@@ -131,8 +176,7 @@ void rifiuta_richiesta(RICHIESTA* richiesta,int id_partita,GIOCATORE*giocatore1)
 }
 
 RICHIESTA * searchRichiesta(int id_partita, GIOCATORE* giocatore){
-    pthread_mutex_lock(&lock);
-    pthread_mutex_lock(&gameListLock);
+    
     
     // Controllo se id_partita è valido
     if(id_partita < 0 || id_partita >= MAX_GAME || Partite[id_partita] == NULL) {
@@ -149,8 +193,7 @@ RICHIESTA * searchRichiesta(int id_partita, GIOCATORE* giocatore){
     for(int i = 0; i < MAX_GIOCATORI-1; i++) {
         if(partita->richieste[i] && partita->richieste[i]->giocatore == giocatore) {
             richiesta_trovata = true;
-            pthread_mutex_unlock(&gameListLock);
-            pthread_mutex_unlock(&lock);
+            
             return partita->richieste[i];
 
         }}
@@ -160,8 +203,7 @@ RICHIESTA * searchRichiesta(int id_partita, GIOCATORE* giocatore){
     }
     
 
-    pthread_mutex_unlock(&gameListLock);
-    pthread_mutex_unlock(&lock);
+  
 
     return NULL;
 

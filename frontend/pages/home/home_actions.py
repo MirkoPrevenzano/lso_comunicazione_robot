@@ -75,8 +75,12 @@ class HomeActions:
                 
                 # Vai alla GamePage se fornito game_id
                 self.home_page.controller.shared_data['game_id'] = data.get('game_id')
+                self.home_page.controller.shared_data['player_id_partecipante'] = data.get('player_id')
+                self.home_page.controller.shared_data['simbolo'] = data.get('simbolo', 'X')
+                self.home_page.controller.shared_data['nickname_partecipante'] = data.get('nickname_partecipante', 'Sconosciuto')
+                self.home_page.controller.shared_data['game_data'] = data.get('game_data', {})
+
                 self.home_page.stop_periodic_update_content()
-                self.home_page.server_polling.stop_listener()
                 self.home_page.controller.show_frame("GamePage")
             else:
                 self.home_page.welcome_label.config(text="Errore nell'accettare la richiesta", foreground="red")

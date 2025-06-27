@@ -46,8 +46,9 @@ class GamePage(tk.Frame):
         title.grid(row=0, column=1, pady=10)
 
         # Info giocatori
-        self.players_label = ttk.Label(self, text="Partecipante:", style="TLabel", justify="center")
+        self.players_label = ttk.Label(self, text="Partecipante: {self.controller.shared_data}", style="TLabel", justify="center")
         self.players_label.grid(row=1, column=0, pady=5)
+        
 
         # Turno
         self.turn_label = ttk.Label(self, text="Turno:", style="TLabel", justify="center")
@@ -79,9 +80,11 @@ class GamePage(tk.Frame):
         self.current_turn = None
 
     def update_data(self):
-        self.simbolo_assegnato = self.controller.shared_data.get("simbolo_assegnato", "")
-        self.nomePartecipante = self.controller.shared_data.get("nomePartecipante", "")
+        self.simbolo_assegnato = self.controller.shared_data.get("simbolo", "")
+        self.nomePartecipante = self.controller.shared_data.get("nickname_partecipante", "")
         self.id = self.controller.shared_data.get("game_id", "")
+        self.player_id = self.controller.shared_data.get("player_id_partecipante", "")
+
         self._assegna_simbolo()
         self.aggiorna_dati(self.controller.shared_data.get("game_data", {}))
 
@@ -115,7 +118,8 @@ class GamePage(tk.Frame):
     def aggiorna_dati(self, dati_game):
         """Aggiorna gli attributi e la UI con i dati ricevuti dal server."""
         self.TRIS = dati_game.get("TRIS", [[0]*3 for _ in range(3)])
-        self.esito = dati_game.get("esito")
+        if dati_game.get("esito") is not None: 
+            self.esito = dati_game.get("esito")
         self.turno = dati_game.get("turno")
         if self._gestisci_esito(dati_game.get("messaggio", "")):
             return
@@ -152,9 +156,9 @@ class GamePage(tk.Frame):
         self.turn_label.config(text=f"Turno: {simbolo}")
     
     def _assegna_simbolo(self):
-        if self.simbolo_assegnato == 1:
+        if self.simbolo_assegnato == 'X':
             simbolo = "✗"
-        elif self.simbolo_assegnato == 2:
+        elif self.simbolo_assegnato == 'O':
             simbolo = "◯"
         else:
             simbolo = str(self.turno)

@@ -373,7 +373,11 @@ void checkRouter(char* buffer, GIOCATORE*nuovo_giocatore, int socket_nuovo, int 
                             int id_player = id_item_2->valueint;
                             printf("ID Giocatore della richiesta: %d\n", id_player);
                             GIOCATORE * nuovo_giocatore_2 = SearchPlayerByid(id_player);
+                            pthread_mutex_lock(&lock);
+                            pthread_mutex_lock(&gameListLock);
                             accetta_richiesta(searchRichiesta(id_partita, SearchPlayerByid(id_player)),id_partita,nuovo_giocatore, nuovo_giocatore_2);
+                            pthread_mutex_unlock(&gameListLock);
+                            pthread_mutex_unlock(&lock);
                         }else{
                         printf("Il campo 'player_id' non è presente o non è un numero.\n");
                         send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
@@ -404,9 +408,11 @@ void checkRouter(char* buffer, GIOCATORE*nuovo_giocatore, int socket_nuovo, int 
                             int id_player = id_item_2->valueint;
                             printf("ID Giocatore della richiesta: %d\n", id_player);
                             GIOCATORE * nuovo_giocatore_2 = SearchPlayerByid(id_player);
+                            pthread_mutex_lock(&lock);
                             pthread_mutex_lock(&gameListLock);
                             rifiuta_richiesta(searchRichiesta(id_partita, nuovo_giocatore_2),id_partita,nuovo_giocatore); 
                             pthread_mutex_unlock(&gameListLock);
+                            pthread_mutex_unlock(&lock);
                         }else{
                             printf("Il campo 'player_id' non è presente o non è un numero.\n");
                             send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
