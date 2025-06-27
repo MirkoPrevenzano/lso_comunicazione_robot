@@ -1,0 +1,4 @@
+# Requirements per il client Python
+# Al momento non ci sono dipendenze esterne specifiche
+# tkinter è incluso con Python
+# socket, json, select, time, os sono moduli standard

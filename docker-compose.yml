@@ -1,0 +1,36 @@
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    container_name: tris-server
+    ports:
+      - "8080:8080"
+    networks:
+      - tris-network
+    restart: unless-stopped
+
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    environment:
+      - DISPLAY=${DISPLAY}
+      - SERVER_HOST=server
+      - SERVER_PORT=8080
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${HOME}/.Xauthority:/root/.Xauthority:rw
+    networks:
+      - tris-network
+    depends_on:
+      - server
+    # Template per client singolo - per più client usa gli script
+    profiles:
+      - single-client
+
+networks:
+  tris-network:
+    driver: bridge
+
+

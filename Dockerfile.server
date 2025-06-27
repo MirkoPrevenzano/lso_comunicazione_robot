@@ -1,0 +1,27 @@
+# Dockerfile per il server C
+FROM ubuntu:22.04
+
+# Evita le interazioni durante l'installazione
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Aggiorna i pacchetti e installa le dipendenze
+RUN apt-get update && apt-get install -y \
+    gcc \
+    make \
+    libcjson-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Crea la directory di lavoro
+WORKDIR /app
+
+# Copia i file sorgente del server
+COPY server/ .
+
+# Compila il server
+RUN make clean && make
+
+# Esponi la porta
+EXPOSE 8080
+
+# Comando per avviare il server
+CMD ["./server"]

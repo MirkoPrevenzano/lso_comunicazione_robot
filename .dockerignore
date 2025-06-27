@@ -1,0 +1,29 @@
+# Docker ignore file
+
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+
+# Build artifacts (per il server)
+server/*.o
+server/server
+
+# Python cache
+frontend/__pycache__/
+frontend/**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Temporary files
+*.tmp
+*.log
+
+# Docker files (non servono nell'immagine)
+Dockerfile*
+docker-compose.yml
+docker-run.sh
+.dockerignore

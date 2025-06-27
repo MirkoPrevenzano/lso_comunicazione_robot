@@ -4,8 +4,13 @@ import socket
 import json
 import select
 import time
+import os
 
 BUFFER_SIZE = 4096
+
+# Configurazione server da variabili d'ambiente
+SERVER_HOST = os.getenv('SERVER_HOST', '127.0.0.1')
+SERVER_PORT = int(os.getenv('SERVER_PORT', '8080'))
 
 class SelectBasedClient:
     def __init__(self):
@@ -16,9 +21,9 @@ class SelectBasedClient:
     def connect(self):
         """Stabilisce la connessione principale"""
         try:
-            print("Tentativo di connessione al server...")
+            print(f"Tentativo di connessione al server {SERVER_HOST}:{SERVER_PORT}...")
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.socket.connect(("127.0.0.1", 8080))
+            self.socket.connect((SERVER_HOST, SERVER_PORT))
             self.connected = True
             print("Connessione stabilita!")
         except Exception as e:

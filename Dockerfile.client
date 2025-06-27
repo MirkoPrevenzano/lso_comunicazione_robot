@@ -1,0 +1,21 @@
+# Dockerfile per il client Python
+FROM python:3.10-slim
+
+# Installa le dipendenze di sistema per tkinter e X11
+RUN apt-get update && apt-get install -y \
+    python3-tk \
+    x11-apps \
+    xauth \
+    && rm -rf /var/lib/apt/lists/*
+
+# Crea la directory di lavoro
+WORKDIR /app
+
+# Copia i file del frontend
+COPY frontend/ .
+
+# Installa le dipendenze Python se necessarie
+# RUN pip install -r requirements.txt
+
+# Comando per avviare il client
+CMD ["python3", "client_gui.py"]
