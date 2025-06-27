@@ -2,9 +2,8 @@ import tkinter as tk
 from tkinter import ttk
 from pages.login_page import LoginPage
 from pages.home.home_page import HomePage
-from client_network import send_to_server, connect_to_server, close_connections
-from pages.game_page import GamePage
-from pages.attend_page import AttendPage
+from client_network import connect_to_server, close_connections
+from pages.game.game_page import GamePage
 import atexit
 
 FONT_FAMILY = "Segoe UI"
@@ -40,7 +39,7 @@ class MainApp(tk.Tk):
         self.frames = {}
 
         # Inizializza le pagine
-        for page in (LoginPage, HomePage, GamePage, AttendPage):
+        for page in (LoginPage, HomePage, GamePage):
             page_name = page.__name__
             frame = page(parent=self.container, controller=self)
             self.frames[page_name] = frame

@@ -17,7 +17,10 @@ class ServerPollingManager:
             "/new_request": self._handle_new_request,
             "/remove_request": self._handle_remove_request,
             "/accept_request": self._handle_request_accepted,
-            "/decline_request": self._handle_request_declined
+            "/decline_request": self._handle_request_declined,
+            "/game/start": self._handle_request_accepted,  # Partita iniziata
+            "/update_game": self._hand_game_update,  # Aggiornamento partita
+            "/game_exit": self._hand_game_end,  # Partita terminata
         }
     
     def start_listener(self):
@@ -134,7 +137,6 @@ class ServerPollingManager:
         
         # Passa a GamePage
         self.home_page.stop_periodic_update_content()
-        self.stop_listener()
         self.home_page.controller.show_frame("GamePage")
     
     def _handle_request_declined(self, data):
@@ -143,3 +145,19 @@ class ServerPollingManager:
         game_id = data.get('game_id')
         self.home_page.request_manager.update_sent_request_status(game_id, 'declined')
         print(f"❌ game:{game_id} rifiutata")
+    
+    def _hand_game_update(self, data):
+        request = {
+            "game_id": data.get("game_id"),
+            "TRIS": data.get("TRIS", [[0]*3 for _ in range(3)]),
+            "esito": data.get("esito"),
+            "turno": data.get("turno"),
+            "messaggio": data.get("messaggio", ""),
+        }
+        self.game_page.aggiorna_dati(request)
+        print(f"🔄 Aggiornamento partita ricevuto: {request}")
+        """Gestisce aggiornamento partita"""
+    
+    def _hand_game_end(self, data):
+        """Gestisce fine partita"""
+    

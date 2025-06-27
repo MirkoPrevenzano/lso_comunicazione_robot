@@ -427,7 +427,9 @@ void checkRouter(char* buffer, GIOCATORE*nuovo_giocatore, int socket_nuovo, int 
             }
         }
         else if (nuovo_giocatore->stato == IN_GIOCO) {
-            
+            //azione
+            //back_to_home
+            //cambio_proprietario???
         }
         else {
             printf("Stato giocatore non riconosciuto: %d\n", nuovo_giocatore->stato);

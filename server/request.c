@@ -110,7 +110,6 @@ void accetta_richiesta(RICHIESTA* richiesta,int id_partita,GIOCATORE*giocatore1,
 
 /*
 entrando in questa funzione, entrambi i giocatori si trovano nel client in partita, quindi si può iniziare a giocare
-La funzione viene eseguita in un unico thread a partita.
 La partita inizia con lo stato IN_CORSO e continua fino a quando non viene raggiunto un esito finale (vittoria o pareggio).
 Durante ogni turno, il gioco può essere gestito in modo interattivo, ad esempio ricevendo mosse dai giocatori e aggiornando lo stato della griglia.
 Controllare che chi effettua la mossa sia il giocatore giusto, in base al turno corrente.

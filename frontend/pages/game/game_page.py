@@ -28,10 +28,22 @@ class GamePage(tk.Frame):
         # Navbar
         navbar = ttk.Frame(self, style="TFrame")
         navbar.grid(row=0, column=0, sticky="ew")
-        navbar.columnconfigure(0, weight=1)
+        navbar.columnconfigure(0, weight=0) #pulsante indietro
+        navbar.columnconfigure(1, weight=1) #titolo centrato
+        navbar.columnconfigure(2, weight=0)
 
+        home_button = ttk.Button(
+            navbar,
+            text="<- Home",
+            style="TButton",   
+            command = self.torna_home
+        )
+        home_button.grid(row=0, column=0, padx=10, pady=5, sticky="w")
+
+
+        # Titolo della pagina centrato
         title = ttk.Label(navbar, text="Partita in corso", style="Title.TLabel", justify="center")
-        title.grid(row=0, column=0, pady=10)
+        title.grid(row=0, column=1, pady=10)
 
         # Info giocatori
         self.players_label = ttk.Label(self, text="Partecipante:", style="TLabel", justify="center")
@@ -65,7 +77,6 @@ class GamePage(tk.Frame):
 
         # Stato del gioco
         self.current_turn = None
-        self.after(500, self.ascolta_server)
 
     def update_data(self):
         self.simbolo_assegnato = self.controller.shared_data.get("simbolo_assegnato", "")
@@ -74,59 +85,28 @@ class GamePage(tk.Frame):
         self._assegna_simbolo()
         self.aggiorna_dati(self.controller.shared_data.get("game_data", {}))
 
-    def ascolta_server(self):
-        risposta = receive_from_server()
-        if risposta:
-            try:
-                # ✅ receive_from_server() ora restituisce una lista di dizionari
-                for response in risposta:
-                    if isinstance(response, dict):
-                        data = response  # Usa direttamente il dizionario
-                    elif isinstance(response, str):
-                        data = json.loads(response)  # Parsa solo se è una stringa
-                    else:
-                        print(f"❌ Tipo messaggio non supportato in GamePage: {type(response)}")
-                        continue
-                    
-                    if data.get("type") == "update_game" or data.get("type") == "start_game":
-                        self.aggiorna_dati(data.get("game_data", {}))
-                        self.gestisci_turno(data.get("turno", 0))
-                    elif data.get("type") == "left_player":
-                        messagebox.showinfo("Info", "L'avverario ha lasciato la partita.")
-                        self.controller.show_frame("HomePage")
-                    elif data.get("type") == "error":
-                        messagebox.showerror("Errore", data.get("error", "Errore sconosciuto"))
-                        self.controller.show_frame("HomePage")
-                        
-            except json.JSONDecodeError:
-                print("Errore nella decodifica della risposta JSON.")
-            except Exception as e:
-                print(f"Errore durante l'elaborazione della risposta: {e}")
-        self.after(500, self.ascolta_server)
+    
 
     def handle_click(self, row, col):
-        if self.TRIS[row][col] != 0 or not self._is_my_turn():
-            return
-        self.send_move_to_server(row, col , self.controller.shared_data['nickname'], self.id)
+        self.send_move_to_server(row, col , self.id)
 
-    def send_move_to_server(self,row, col, nickname, game_id):
+    def send_move_to_server(self,row, col, game_id):
         """Invia la mossa al server."""
-        path = "/game/move"
+        path = "/game_move"
         messaggio = {  
             "row": row,
             "col": col,
-            "nickname": nickname,
             "game_id": game_id  
         }
         risposta = send_to_server(path,messaggio)
+        
         if risposta:
            try: 
                 data = json.loads(risposta)
-                if data.get("success") == 1:
-                    self.aggiorna_dati(data.get("game_data", {}))
+                if data.get("error"):
+                    messagebox.showerror("Errore", data.get("error", "Errore sconosciuto"))
                 else:
-                   errore = data.get("error", "Errore sconosciuto")
-                   messagebox.showerror("Errore", errore)
+                    self.aggiorna_dati(data)
            except json.JSONDecodeError:
                print("Errore nella decodifica della risposta JSON.")
         else:
@@ -137,13 +117,12 @@ class GamePage(tk.Frame):
         self.TRIS = dati_game.get("TRIS", [[0]*3 for _ in range(3)])
         self.esito = dati_game.get("esito")
         self.turno = dati_game.get("turno")
-        if self._gestisci_esito():
+        if self._gestisci_esito(dati_game.get("messaggio", "")):
             return
         self._aggiorna_labels()
         self._aggiorna_griglia()
-        self._abilita_griglia()
 
-    def _gestisci_esito(self):
+    def _gestisci_esito(self, messaggio):
         """Gestisce la visualizzazione dell'esito della partita."""
         if self.esito is not None and self.esito != 0:
             esito_text = "Partita terminata: "
@@ -154,16 +133,19 @@ class GamePage(tk.Frame):
             else:
                 esito_text += "Pareggio!"
             messagebox.showinfo("Esito partita", esito_text)
-            self.controller.show_frame("HomePage")
+            if( messaggio):
+                self._gestisci_messaggio(messaggio)
+            else:
+                self.controller.show_frame("HomePage")
             return True
         return False
 
     def _aggiorna_labels(self):
         """Aggiorna le label dei partecipanti e del turno."""
         self.players_label.config(text=f"Partecipante: {self.nomePartecipante}")
-        if self.turno == 1:
+        if self.turno == 0:
             simbolo = "✗"
-        elif self.turno == 2:
+        elif self.turno == 1:
             simbolo = "◯"
         else:
             simbolo = str(self.turno)
@@ -191,23 +173,40 @@ class GamePage(tk.Frame):
                     text = "O"
                 else:
                     text = str(value)
-                self.buttons[i][j].config(text=text)
+                if(self.buttons[i][j].text != text):
+                    self.buttons[i][j].config(text=text)
+    
+    
+    def torna_home(self):
+        """Torna alla pagina principale."""
+        result = messagebox.askyesno("Conferma", "Vuoi tornare alla pagina principale? Il tuo abbandono darà sconfitta a tavolino.")
 
-    def _abilita_griglia(self):
-        """Abilita o disabilita i bottoni della griglia in base al turno e stato partita."""
-        my_turn = self._is_my_turn()
-        partita_attiva = self.esito is None or self.esito == 0
-        for i in range(3):
-            for j in range(3):
-                if self.TRIS[i][j] == 0 and my_turn and partita_attiva:
-                    self.buttons[i][j].state(["!disabled"])
-                else:
-                    self.buttons[i][j].state(["disabled"])
+        if result:
+            self.id = None
+            self.nomePartecipante = ""
+            self.esito = None
+            self.turno = None
+            self.TRIS = [[0 for _ in range(3)] for _ in range(3)]
+            send_to_server("/exit_game", {"game_id": self.id})
+            self.controller.show_frame("HomePage")
+    
+    def _gestisci_messaggio(self, messaggio):
+        """Richiede se vuole rifare una nuova partita."""
+        result =messagebox.askyesno("Nuova Partita", messaggio)
+        if result:
+            self.reset_game()
+            self.controller.show_frame("HomePage")
+        else:
+            self.torna_home()
 
-    def _is_my_turn(self):
-        return self.simbolo_assegnato == self.turno and (self.esito is None or self.esito == 0)
 
-    def gestisci_turno(self, turno):
-        self.turno = turno
+    def reset_game(self):
+        """Resetta lo stato del gioco."""
+        self.id = None
+        self.nomePartecipante = ""
+        self.esito = None
+        self.turno = None
+        self.TRIS = [[0 for _ in range(3)] for _ in range(3)]
+        self._aggiorna_griglia()
         self._aggiorna_labels()
-        self._abilita_griglia()
+        self.simbolo_label.config(text="Simbolo Assegnato: ")

@@ -29,16 +29,16 @@
 
 
 // Dichiarazioni
-extern int numero_connessioni;
-extern int numero_partite;
+extern int numero_connessioni; // Numero di connessioni attive
+extern int numero_partite; // Numero di partite attive
 
 
-extern GAME* Partite[MAX_GAME];
-extern GIOCATORE* Giocatori[MAX_GIOCATORI];
+extern GAME* Partite[MAX_GAME]; // Array di puntatori a partite
+extern GIOCATORE* Giocatori[MAX_GIOCATORI]; // Array di puntatori a giocatori
 
-extern pthread_mutex_t lock;
-extern pthread_mutex_t playerListLock;
-extern pthread_mutex_t gameListLock;
+extern pthread_mutex_t lock; // Mutex per proteggere l'accesso alle risorse condivise
+extern pthread_mutex_t playerListLock; // Mutex per proteggere l'accesso alla lista dei giocatori
+extern pthread_mutex_t gameListLock; // Mutex per proteggere l'accesso alla lista delle partite
 
 //opterei di fare un mutex per ogni grado di informazioni: esempio mutex_partita che blocca accessi simultanei al momento di aggiungere o rimuovere una partita
 //forse un mutex per ogni partita

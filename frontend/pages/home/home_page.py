@@ -6,7 +6,7 @@ import time
 from client_network import send_to_server, receive_from_server, connect_to_server, close_connections
 from .home_actions import HomeActions
 from .home_widgets import HomeWidgets, HomeScrolling
-from .server_polling import ServerPollingManager
+from server_polling import ServerPollingManager
 from .request_manager import RequestManager
 
 # Costanti per stili
