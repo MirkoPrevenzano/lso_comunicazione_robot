@@ -43,25 +43,35 @@ void handlerInviaGames(int  socket_nuovo){
 
 
 GAME * searchPartitaById(int id){
-    pthread_mutex_lock(&gameListLock);
     for(int i=0;i<MAX_GAME;i++)
         if(Partite[i]->id==id){
             pthread_mutex_unlock(&gameListLock);
             return Partite[i];
         }
-    pthread_mutex_unlock(&gameListLock);
     return NULL;
 
 }
 
 void HandlerInviaMovesPartita(GIOCATORE*giocatore,GAME*partita){
-    cJSON*root = cJSON_CreateObject();
-    cJSON *array = cJSON_CreateArray();
-    crea_json(array,partita->id,giocatore->nome);
-
-    cJSON_AddItemToObject(root, "game_response",array);
-    char *json_str=cJSON_PrintUnformatted(root);
-    cJSON_Delete(root);
+    
+    //{type: "game_response", game_id: partita->id, game_data: {TRIS:partita->griglia, turno: partita->turno}}
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "type", "game_response");
+    cJSON_AddNumberToObject(root, "game_id", partita->id);
+    cJSON *game_data = cJSON_CreateObject();
+    char griglia_str1[10]; // 9 positions + null terminator
+    for(int i = 0; i < 3; i++) {
+        for(int j = 0; j < 3; j++) {
+            griglia_str1[i*3 + j] = (char)(partita->griglia[i][j]);
+        }
+    }
+    griglia_str1[9] = '\0';
+    
+    cJSON_AddItemToObject(game_data, "TRIS", cJSON_CreateString(griglia_str1));        
+    cJSON_AddNumberToObject(game_data, "turno", partita->turno);
+    cJSON_AddItemToObject(root, "game_data", game_data);
+    char *json_str = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root); // Libera la memoria allocata per il JSON
     printf("Invio griglia partita al socket %d: %s\n", giocatore->socket, json_str);
     fflush(stdout);
     send(giocatore->socket,json_str,strlen(json_str),0);
@@ -77,6 +87,7 @@ void handler_game_response(GIOCATORE*giocatore,GAME*partita){
         indice=1;
     else
         indice=0;
+    //usa solo uno standard di nome per le funzioni camelCase, snake_case, ecc
     HandlerInviaMovesPartita(partita->giocatoreParticipante[indice],partita);
     pthread_mutex_unlock(&gameListLock);
 }

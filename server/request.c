@@ -132,7 +132,8 @@ void accetta_richiesta(RICHIESTA* richiesta,int id_partita,GIOCATORE*giocatore1,
         }
         griglia_str1[9] = '\0';
         
-        cJSON_AddItemToObject(game_data2, "TRIS", cJSON_CreateString(griglia_str1));        cJSON_AddNumberToObject(game_data2, "turno", partita->turno);
+        cJSON_AddItemToObject(game_data2, "TRIS", cJSON_CreateString(griglia_str1));        
+        cJSON_AddNumberToObject(game_data2, "turno", partita->turno);
         cJSON_AddItemToObject(success_message2, "game_data", game_data2);
         char *message2 = cJSON_Print(success_message2);
         send(giocatore2->socket, message2, strlen(message2), 0);

@@ -19,7 +19,7 @@ class ServerPollingManager:
             "/accept_request": self._handle_request_accepted,
             "/decline_request": self._handle_request_declined,
             "/game_start": self._handle_request_accepted,  # Partita iniziata
-            "/update_game": self._hand_game_update,  # Aggiornamento partita
+            "/game_response": self._hand_game_update,  # Aggiornamento partita
             "/game_exit": self._hand_game_end,  # Partita terminata
         }
     
@@ -149,8 +149,6 @@ class ServerPollingManager:
     def _hand_game_update(self, data):
         self.home_page.controller.shared_data['game_id'] = data.get('game_id')
         self.home_page.controller.shared_data['player_id_partecipante'] = data.get('player_id')
-        self.home_page.controller.shared_data['simbolo'] = data.get('simbolo', 'X')
-        self.home_page.controller.shared_data['nickname_partecipante'] = data.get('nickname_partecipante', 'Sconosciuto')
         self.home_page.controller.shared_data['game_data'] = data.get('game_data', {})
         self.game_page.update_data()
         print(f"🔄 Aggiornamento partita ricevuto: {request}")

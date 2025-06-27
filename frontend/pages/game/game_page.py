@@ -177,7 +177,7 @@ class GamePage(tk.Frame):
                     text = "O"
                 else:
                     text = str(value)
-                if(self.buttons[i][j].text != text):
+                if(self.buttons[i][j]['text']!= text):
                     self.buttons[i][j].config(text=text)
     
     

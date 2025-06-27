@@ -437,51 +437,47 @@ void sendSuccessNewGame(int success, GIOCATORE*giocatore, int id_partita){
 
 
 void aggiorna_partita(GAME*partita,GIOCATORE*giocatore,int col,int row){
+    printf("Aggiornamento partita con id: %d, giocatore: %s, colonna: %d, riga: %d\n", partita->id, giocatore->nome, col, row);
+    fflush(stdout);
     sem_wait(&(partita->semaforo));
     int turno = partita->turno;
     if(partita->giocatoreParticipante[turno]!=giocatore){
+        printf("Il giocatore %s ha tentato di aggiornare la partita ma non è il suo turno\n", giocatore->nome);
+        fflush(stdout);
         send_success_message(0,giocatore->socket,"non è il tuo turno");
         sem_post(&(partita->semaforo));
         return;
     }else{
-        Esito esito= verifica_esito_partita(partita);
-        if(esito!=NESSUN_ESITO){
-            InviaEsito(partita,esito);
-            sem_post(&(partita->semaforo));
-        }
         bool success = aggiorna_griglia(partita,giocatore,col,row,turno);
-        if(success)
-            switchTurn(partita);
+        if(success){}
+            Esito esito= verifica_esito_partita(partita);
+            if(esito!=NESSUN_ESITO)
+                InviaEsito(partita,esito);
+            else
+                switchTurn(partita);
     }
     sem_post(&(partita->semaforo));
 }
 
 void  switchTurn(GAME*partita){
-    switch(partita->turno){
-        case 0:
-        partita->turno=1;
-        break;
-
-        case 1:
-        partita->turno=0;
-        break;
+    if(partita->turno == 0) {
+        partita->turno = 1; // Passa al giocatore 1
+    } else {
+        partita->turno = 0; // Passa al giocatore 0
     }
-
-
+    printf("Turno cambiato a: %d\n", partita->turno);
+    fflush(stdout);
 }
 
 bool aggiorna_griglia(GAME*partita,GIOCATORE*giocatore,int col,int row,int turno){
-    pthread_mutex_lock(&gameListLock);
-    //usare un nuovo mutex_lock per le partite , sto mutex viene usato sempre
+    // Rimuovo il mutex qui perché il semaforo della partita già protegge l'accesso
     if(partita->griglia[col][row]!=0){
         send_success_message(0,giocatore->socket,"casella già occupata");
-        pthread_mutex_unlock(&gameListLock);
         return false;
     }else{
-        partita->griglia[col][row]=turno;
+        partita->griglia[col][row]=turno+1; //turno+1 perché il turno è 0 o 1, ma la griglia è 1 o 2
         printf("casella aggiornata con successo");
         send_success_message(1,giocatore->socket,"casella aggiornata con successo");
-        pthread_mutex_unlock(&gameListLock);
         return true;
     }
 

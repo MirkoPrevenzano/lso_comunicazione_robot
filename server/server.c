@@ -467,7 +467,9 @@ void checkRouter(char* buffer, GIOCATORE*nuovo_giocatore, int socket_nuovo, int 
                                     if (id_item_3 && cJSON_IsNumber(id_item_3)) {
                                         int col = id_item_2->valueint;
                                         int row = id_item_3->valueint;
+                                        pthread_mutex_lock(&gameListLock);
                                         GAME*partita=searchPartitaById(id_partita);
+                                        pthread_mutex_unlock(&gameListLock);
                                         aggiorna_partita(partita,nuovo_giocatore,col,row);
                                         handler_game_response(nuovo_giocatore,partita);
                             }else{
