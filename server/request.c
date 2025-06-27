@@ -8,10 +8,9 @@
 void remove_request_by_player(GIOCATORE *giocatore) {
    
     if(giocatore == NULL) {
-    
+        printf("Nessun giocatore specificato per la rimozione della richiesta.\n");
         return; // Non c'è nulla da rimuovere
     }
-    pthread_mutex_lock(&gameListLock);
     // Rimuove la richiesta associata al giocatore
     for (int j = 0; j < MAX_GAME; ++j) {
         if (Partite[j]) {
@@ -24,28 +23,24 @@ void remove_request_by_player(GIOCATORE *giocatore) {
             }
         }
     }
-    pthread_mutex_unlock(&gameListLock);
+    printf("Rimozione della richiesta per il giocatore %s\n", giocatore->nome);
 
  
 }
 
-void remove_request_by_GAME(int id_partita) {
+void decline_request_by_GAME(int id_partita) {
     GAME*partita= Partite[id_partita];
     if(partita == NULL) {
     
         return; // Non c'è nulla da rimuovere
     }
     // Rimuove le richiesta associate alla partita
-    for (int j = 0; j < MAX_GIOCATORI; ++j) {
-        if (partita->richieste[j]) {
-                    free(partita->richieste[j]); 
-                    partita->richieste[j] = NULL;
-                    partita->numero_richieste--;
-                }
+    for (int j = 0; j < MAX_GIOCATORI-1; ++j) {
+        if (partita->richieste[j] && partita->richieste[j]->stato == RICHIESTA_IN_ATTESA) { 
+            rifiuta_richiesta(partita->richieste[j], id_partita, NULL);
         }
-    
-
- 
+    }
+    printf("Rifiuto di tutte le richieste in attesa per la partita %d\n", id_partita);
 }
 
 RICHIESTA * crea_richiesta(GIOCATORE *giocatore) {
@@ -81,18 +76,20 @@ void accetta_richiesta(RICHIESTA* richiesta,int id_partita,GIOCATORE*giocatore1,
     else{
         send_success_message(1, giocatore2->socket, "la tua richiesta è stata accettata");
         send_success_message(1, giocatore1->socket, "stai entrando in game");
-        //qui da segmentation fault
         
         pthread_mutex_lock(&gameListLock);
+        printf("Accettazione della richiesta per la partita %d tra %s e %s\n", id_partita, giocatore1->nome, giocatore2->nome);
         remove_request_by_player(giocatore1);
         remove_request_by_player(giocatore2);
+        richiesta->stato = RICHIESTA_ACCETTATA; // Aggiorna lo stato della richiesta
         giocatore1->stato = IN_GIOCO; // Imposta lo stato del giocatore come in gioco
         giocatore2->stato = IN_GIOCO; // Imposta lo stato del giocatore come in gioco
         partita->giocatoreParticipante[0] = giocatore1; // Assegna il primo giocatore
         partita->giocatoreParticipante[1] = giocatore2; // Assegna il secondo giocatore
         //eliminare tutte le richieste
 
-        remove_request_by_GAME(id_partita);
+        //rifiuto tutte le richieste in attesa per questa partita
+        decline_request_by_GAME(id_partita);
 
        
         pthread_mutex_unlock(&gameListLock);
@@ -116,11 +113,7 @@ Controllare che chi effettua la mossa sia il giocatore giusto, in base al turno 
 Ad ogni iterazione bisogna controllare se uno dei due giocatori non è più connesso bisogna dare la vittoria all'altro giocatore.
 */
 
-void rifiuta_richiesta(RICHIESTA* richiesta,int id_partita,GIOCATORE*giocatore1 ,GIOCATORE* giocatore2){
-    pthread_mutex_lock(&lock);
-    pthread_mutex_lock(&gameListLock);
-    
-    
+void rifiuta_richiesta(RICHIESTA* richiesta,int id_partita,GIOCATORE*giocatore1){
     if(richiesta == NULL){
         printf("Nessuna richiesta o gioco trovati");
         send_success_message(0, giocatore1->socket, "errore, richiesta o partita non trovati");
@@ -128,13 +121,13 @@ void rifiuta_richiesta(RICHIESTA* richiesta,int id_partita,GIOCATORE*giocatore1 
     }else{
         richiesta->stato = RICHIESTA_RIFIUTATA; // Aggiorna lo stato della richiesta
         //{path: "/decline_request", body: {game_id: id_partita}}
-        send_declined_request_message(id_partita, giocatore2);
-        printf("Richiesta rimossa per il giocatore %s dalla partita %d\n", giocatore2->nome, id_partita);
-        send_success_message(1, giocatore1->socket, "Richiesta rimossa con successo");
+        send_declined_request_message(id_partita, richiesta->giocatore);
+        printf("Richiesta rimossa per il giocatore %s dalla partita %d\n", richiesta->giocatore->nome, id_partita);
+        if(giocatore1 != NULL) {
+            send_success_message(1, giocatore1->socket, "Richiesta rifiutata con successo");
+        }
     }
 
-    pthread_mutex_unlock(&gameListLock);
-    pthread_mutex_unlock(&lock);
 }
 
 RICHIESTA * searchRichiesta(int id_partita, GIOCATORE* giocatore){
