@@ -4,6 +4,7 @@ from pages.login_page import LoginPage
 from pages.home.home_page import HomePage
 from client_network import connect_to_server, close_connections
 from pages.game.game_page import GamePage
+from server_polling import ServerPollingManager
 import atexit
 
 FONT_FAMILY = "Segoe UI"
@@ -17,6 +18,10 @@ class MainApp(tk.Tk):
 
         #Dizionario per salvare info globali
         self.shared_data= {}
+        
+        # Inizializza il ServerPollingManager centralizzato
+        self.server_polling = ServerPollingManager(self)
+        
         # Imposta lo sfondo nero
         self.configure(bg="black")
 
@@ -52,10 +57,25 @@ class MainApp(tk.Tk):
 
     def show_frame(self, page_name):
         """Mostra una pagina specifica."""
+        # Memorizza il frame corrente per il ServerPollingManager
+        self.current_frame = page_name
+        
         frame = self.frames[page_name]
         frame.tkraise()
         if hasattr(frame, "update_data"):
             frame.update_data()
+    
+    def get_server_polling(self):
+        """Restituisce il riferimento al ServerPollingManager centralizzato"""
+        return self.server_polling
+    
+    def start_global_polling(self):
+        """Avvia il polling del server centralizzato"""
+        self.server_polling.start_listener()
+    
+    def stop_global_polling(self):
+        """Ferma il polling del server centralizzato"""
+        self.server_polling.stop_listener()
     
    
         

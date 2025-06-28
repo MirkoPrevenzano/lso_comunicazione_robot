@@ -140,7 +140,7 @@ class GamePage(tk.Frame):
                 if data.get("success") == 0:
                     messagebox.showerror("Errore", data.get("message", "Errore sconosciuto"))
                 else:
-                    self.aggiorna_dati(data)
+                    self.aggiorna_dati(data.get("game_data", {}))
            except json.JSONDecodeError:
                print("Errore nella decodifica della risposta JSON.")
         else:

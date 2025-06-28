@@ -31,6 +31,11 @@ void aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario){
             for(int j = 0; j < MAX_GIOCATORI-1; j++) {
                 Partite[i]->richieste[j] = NULL;
             }
+            for(int i=0;i<3; i++){
+               for(int j=0;j<3;j++){
+                    Partite[i]->griglia[i][j]=0; // MODIFICA: Inizializza la griglia a 0
+                }
+            }
             
             //a cosa serve? il semaforo serve per sincronizzare l'accesso alla partita perchè può essere accessibile da più thread
             //con sem_init si inizializza il semaforo uno ad uno i parametri sono: il semaforo, il valore iniziale (0 o 1), e il valore di condivisione (0 per processo, 1 per thread)

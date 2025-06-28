@@ -1,14 +1,14 @@
-"""Gestione del polling del server per la home page"""
+"""Gestione del polling del server centralizzato per tutta l'applicazione"""
 
 import json
 from client_network import receive_from_server
 
 
 class ServerPollingManager:
-    """Gestisce il polling del server e i messaggi ricevuti"""
+    """Gestisce il polling del server e i messaggi ricevuti per tutta l'applicazione"""
     
-    def __init__(self, home_page):
-        self.home_page = home_page
+    def __init__(self, controller):
+        self.controller = controller
         self.listener_active = False
         self.server_polling_id = None
         
@@ -19,8 +19,8 @@ class ServerPollingManager:
             "/accept_request": self._handle_request_accepted,
             "/decline_request": self._handle_request_declined,
             "/game_start": self._handle_request_accepted,  # Partita iniziata
-            "/game_response": self._hand_game_update,  # Aggiornamento partita
-            "/game_exit": self._hand_game_end,  # Partita terminata
+            "/game_response": self._handle_game_update,  # Aggiornamento partita
+            "/game_exit": self._handle_game_end,  # Partita terminata
         }
     
     def start_listener(self):
@@ -35,9 +35,22 @@ class ServerPollingManager:
         """Ferma il monitoraggio del server"""
         self.listener_active = False
         if self.server_polling_id:
-            self.home_page.after_cancel(self.server_polling_id)
+            # Usa il controller invece di home_page per annullare il timer
+            self.controller.after_cancel(self.server_polling_id)
             self.server_polling_id = None
         print("🛑 Server listener fermato")
+    
+    def _get_home_page(self):
+        """Ottieni il riferimento alla HomePage"""
+        return self.controller.frames.get("HomePage")
+    
+    def _get_game_page(self):
+        """Ottieni il riferimento alla GamePage"""
+        return self.controller.frames.get("GamePage")
+    
+    def _get_current_frame_name(self):
+        """Ottieni il nome del frame corrente"""
+        return getattr(self.controller, 'current_frame', None)
     
     def _poll_server_messages(self):
         """Controlla periodicamente se ci sono messaggi dal server usando select."""
@@ -71,7 +84,7 @@ class ServerPollingManager:
         
         # Programma il prossimo controllo (ogni 100ms, come il timeout nel codice C)
         if self.listener_active:
-            self.server_polling_id = self.home_page.after(100, self._poll_server_messages)
+            self.server_polling_id = self.controller.after(100, self._poll_server_messages)
     
     def _handle_server_message(self, data):
         """Gestisce i messaggi ricevuti dal server usando il pattern handler."""
@@ -94,29 +107,39 @@ class ServerPollingManager:
     
     def _handle_new_request(self, data):
         """Gestisce nuova richiesta ricevuta dal server"""
+        home_page = self._get_home_page()
+        if not home_page:
+            print("⚠️ HomePage non trovata per gestire nuova richiesta")
+            return
+            
         new_request = {
             'game_id': data.get('game_id'),
             'player_id': data.get('player_id'),
             'mittente': data.get('player_name', 'Sconosciuto'),
         }
-        self.home_page.request_manager.add_received_request(new_request)
+        home_page.request_manager.add_received_request(new_request)
         print(f"🔔 Nuova richiesta ricevuta da {data.get('player_name')} per partita {data.get('game_id')}")
     
     def _handle_remove_request(self, data):
         """Gestisce richiesta annullata"""
+        home_page = self._get_home_page()
+        if not home_page:
+            print("⚠️ HomePage non trovata per gestire rimozione richiesta")
+            return
+            
         player_id = data.get('player_id')
         game_id = data.get('game_id')
         
         print(f"🗑️ DEBUG: Handling remove_request - player_id={player_id}, game_id={game_id}")
-        print(f"🗑️ DEBUG: Richieste ricevute prima rimozione: {len(self.home_page.request_manager.received_requests)}")
-        for i, req in enumerate(self.home_page.request_manager.received_requests):
+        print(f"🗑️ DEBUG: Richieste ricevute prima rimozione: {len(home_page.request_manager.received_requests)}")
+        for i, req in enumerate(home_page.request_manager.received_requests):
             print(f"🗑️ DEBUG: Richiesta {i}: {req}")
         
         # Rimuovi la richiesta dalla lista locale usando player_id e game_id
-        self.home_page.request_manager.remove_received_request(player_id, game_id)
+        home_page.request_manager.remove_received_request(player_id, game_id)
         
-        print(f"🗑️ DEBUG: Richieste ricevute dopo rimozione: {len(self.home_page.request_manager.received_requests)}")
-        for i, req in enumerate(self.home_page.request_manager.received_requests):
+        print(f"🗑️ DEBUG: Richieste ricevute dopo rimozione: {len(home_page.request_manager.received_requests)}")
+        for i, req in enumerate(home_page.request_manager.received_requests):
             print(f"🗑️ DEBUG: Richiesta {i}: {req}")
         
         # ✅ Non aggiornare l'UI qui se già gestito dal request_manager
@@ -128,52 +151,63 @@ class ServerPollingManager:
     def _handle_request_accepted(self, data):
         """Gestisce partita iniziata"""
         print("🎮 Partita iniziata!")
-        self.home_page.controller.shared_data['game_id'] = data.get('game_id')
-        self.home_page.controller.shared_data['player_id_partecipante'] = data.get('player_id')
-        self.home_page.controller.shared_data['simbolo'] = data.get('simbolo', 'O')
-        self.home_page.controller.shared_data['nickname_partecipante'] = data.get('nickname_partecipante', 'Sconosciuto')
-        self.home_page.controller.shared_data['game_data'] = data.get('game_data', {})
+        home_page = self._get_home_page()
         
+        self.controller.shared_data['game_id'] = data.get('game_id')
+        self.controller.shared_data['player_id_partecipante'] = data.get('player_id')
+        self.controller.shared_data['simbolo'] = data.get('simbolo', 'O')
+        self.controller.shared_data['nickname_partecipante'] = data.get('nickname_partecipante', 'Sconosciuto')
+        self.controller.shared_data['game_data'] = data.get('game_data', {})
+        
+        # Ferma l'aggiornamento periodico della HomePage se disponibile
+        if home_page and hasattr(home_page, 'stop_periodic_update_content'):
+            home_page.stop_periodic_update_content()
         
         # Passa a GamePage
-        self.home_page.stop_periodic_update_content()
-        self.home_page.controller.show_frame("GamePage")
+        self.controller.show_frame("GamePage")
     
     def _handle_request_declined(self, data):
         """Gestisce richiesta rifiutata"""
-        print("❌ Richiesta rifiuptata dal server")
+        print("❌ Richiesta rifiutata dal server")
+        home_page = self._get_home_page()
+        if not home_page:
+            print("⚠️ HomePage non trovata per gestire richiesta rifiutata")
+            return
+            
         game_id = data.get('game_id')
-        self.home_page.request_manager.update_sent_request_status(game_id, 'declined')
+        home_page.request_manager.update_sent_request_status(game_id, 'declined')
         print(f"❌ game:{game_id} rifiutata")
     
-    def _hand_game_update(self, data):
-        """Gestisce aggiornamento partita"""
+    def _handle_game_update(self, data):
+        """Gestisce aggiornamento partita - funziona indipendentemente dalla pagina corrente"""
         print(f"🔄 Aggiornamento partita ricevuto: {data}")
         
         # Aggiorna i dati condivisi sempre
-        self.home_page.controller.shared_data['game_id'] = data.get('game_id')
-        self.home_page.controller.shared_data['player_id_partecipante'] = data.get('player_id')
-        self.home_page.controller.shared_data['game_data'] = data.get('game_data', {})
+        self.controller.shared_data['game_id'] = data.get('game_id')
+        self.controller.shared_data['player_id_partecipante'] = data.get('player_id')
+        self.controller.shared_data['game_data'] = data.get('game_data', {})
         
-        # Verifica se siamo attualmente nella GamePage
-        current_frame = getattr(self.home_page.controller, 'current_frame', None)
+        # Verifica quale pagina è correntemente attiva
+        current_frame = self._get_current_frame_name()
         
-        # Ottieni riferimento alla GamePage e aggiorna i dati solo se disponibile
-        try:
-            game_page = self.home_page.controller.frames.get("GamePage")
-            if game_page and hasattr(game_page, 'aggiorna_dati'):
-                # Usa direttamente aggiorna_dati per aggiornare la UI
+        # Aggiorna la GamePage se disponibile
+        game_page = self._get_game_page()
+        if game_page and hasattr(game_page, 'aggiorna_dati'):
+            try:
                 game_data = data.get('game_data', {})
+                print(f"🔧 DEBUG: Aggiornando GamePage con dati: {game_data}")
                 game_page.aggiorna_dati(game_data)
-                print(f"✅ Dati GamePage aggiornati via aggiorna_dati (frame corrente: {current_frame})")
-            else:
-                print("⚠️ GamePage non trovata o non ha metodo aggiorna_dati")
+                print(f"✅ GamePage aggiornata (frame corrente: {current_frame})")
+            except Exception as e:
+                print(f"❌ Errore aggiornamento GamePage: {type(e).__name__}: {e}")
+                import traceback
+                traceback.print_exc()
+        else:
+            print("⚠️ GamePage non trovata o non ha metodo aggiorna_dati")
                 
-        except Exception as e:
-            print(f"❌ Errore aggiornamento GamePage: {type(e).__name__}: {e}")
-            import traceback
-            traceback.print_exc()
-    
-    def _hand_game_end(self, data):
+    def _handle_game_end(self, data):
         """Gestisce fine partita"""
+        print(f"🏁 Fine partita ricevuta: {data}")
+        # TODO: Implementare gestione fine partita
+        # Potrebbe tornare alla HomePage, mostrare risultati, etc.
     

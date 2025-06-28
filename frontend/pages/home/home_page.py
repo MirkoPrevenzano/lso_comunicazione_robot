@@ -6,7 +6,6 @@ import time
 from client_network import send_to_server, receive_from_server, connect_to_server, close_connections
 from .home_actions import HomeActions
 from .home_widgets import HomeWidgets, HomeScrolling
-from server_polling import ServerPollingManager
 from .request_manager import RequestManager
 
 # Costanti per stili
@@ -32,7 +31,7 @@ class HomePage(tk.Frame):
         self.widgets = HomeWidgets(self)
         self.scrolling = HomeScrolling(self)
         self.request_manager = RequestManager(self)
-        self.server_polling = ServerPollingManager(self)
+        # NON creiamo più il server_polling qui - è centralizzato nel MainApp
         
         # Configura il layout a griglia della pagina principale
         self.rowconfigure(0, weight=0)  # Navbar - fisso
@@ -185,12 +184,12 @@ class HomePage(tk.Frame):
         self.welcome_label.config(text=f"Benvenuto, {nickname}!")
         self.change_view(self.current_view)
         self.periodic_update_content()
-        # Avvia il polling del server tramite il manager
-        self.server_polling.start_listener()
+        # Avvia il polling del server tramite il manager centralizzato
+        self.controller.start_global_polling()
 
     def __del__(self):
         """Cleanup quando l'oggetto viene distrutto"""
-        self.server_polling.stop_listener()
+        # Non gestiamo più il server_polling qui - è centralizzato
         self.stop_periodic_update_content()
 
     def clear_content(self):
