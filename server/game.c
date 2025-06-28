@@ -427,7 +427,7 @@ void sendSuccessNewGame(int success, GIOCATORE*giocatore, int id_partita){
 }
 
 
-void aggiorna_partita(GAME*partita,GIOCATORE*giocatore,int col,int row){
+bool aggiorna_partita(GAME*partita,GIOCATORE*giocatore,int col,int row){
     printf("Aggiornamento partita con id: %d, giocatore: %s, colonna: %d, riga: %d\n", partita->id, giocatore->nome, col, row);
     fflush(stdout);
     sem_wait(&(partita->semaforo));
@@ -437,7 +437,7 @@ void aggiorna_partita(GAME*partita,GIOCATORE*giocatore,int col,int row){
         fflush(stdout);
         send_success_message(0,giocatore->socket,"non è il tuo turno");
         sem_post(&(partita->semaforo));
-        return;
+        return false;
     }else{
         bool success = aggiorna_griglia(partita,giocatore,col,row,turno);
         if(success){
@@ -452,7 +452,8 @@ void aggiorna_partita(GAME*partita,GIOCATORE*giocatore,int col,int row){
             }
     }}
     sem_post(&(partita->semaforo));
-}
+    return true;
+}return true;
 
 void  switchTurn(GAME*partita){
     if(partita->turno == 0) {
@@ -472,7 +473,7 @@ bool aggiorna_griglia(GAME*partita,GIOCATORE*giocatore,int col,int row,int turno
     }else{
         partita->griglia[col][row]=turno+1; //turno+1 perché il turno è 0 o 1, ma la griglia è 1 o 2
         printf("casella aggiornata con successo");
-        send_success_message(1,giocatore->socket,"casella aggiornata con successo");
+        //send_success_message(1,giocatore->socket,"casella aggiornata con successo");
         return true;
     }
 
@@ -567,29 +568,56 @@ void InviaEsito(GAME* partita,Esito esito,GIOCATORE*giocatore){
     send(giocatore->socket,json_str,strlen(json_str),0);
     free(json_str);
 
+    gestisci_esito_vittoria(giocatore,esito,partita);
+
 }
 
 void InviaVittoriaAltroGiocatore(GIOCATORE*giocatore){
-    GAME* partita = SearchPartitaBy(giocatore);
-    if(giocatore==partita->giocatoreParticipante[0])
+    GAME* partita = SearchPartitaInCorsoByGiocatore(giocatore);
+    if(giocatore==partita->giocatoreParticipante[0]){
         InviaEsito(partita,VITTORIA,partita->giocatoreParticipante[1]);
-    else
+    }
+    else{
         InviaEsito(partita,VITTORIA,partita->giocatoreParticipante[0]);
-
+    }
+        
 }
 
-GAME*SearchPartitaBy(GIOCATORE*giocatore){
+GAME*SearchPartitaInCorsoByGiocatore(GIOCATORE*giocatore){
     pthread_mutex_lock(&gameListLock);
     for(int i=0;i< MAX_GAME ; i++){
-        if(Partite[i]->giocatoreParticipante[0] == giocatore){
+        if((Partite[i]->giocatoreParticipante[0] == giocatore || Partite[i]->giocatoreParticipante[1] == giocatore ) && Partite[i]->stato_partita==IN_CORSO){
             pthread_mutex_unlock(&gameListLock);
             return Partite[i];
         }
-        if(Partite[i]->giocatoreParticipante[1] == giocatore){
-            pthread_mutex_unlock(&gameListLock);
-            return Partite[i];
-        }    
     }
     pthread_mutex_unlock(&gameListLock);
     return NULL;
 }
+
+void gestisci_esito_vittoria(GIOCATORE*giocatore,Esito esito,GAME*partita){
+
+    if(esito==VITTORIA){
+        if(giocatore==partita->giocatoreParticipante[1]){
+            partita->giocatoreParticipante[0]->stato=IN_HOME;
+            partita->giocatoreParticipante[0] = partita->giocatoreParticipante[1];
+            partita->giocatoreParticipante[1]=NULL;
+        }else{
+            partita->giocatoreParticipante[1]->stato=IN_HOME;
+            partita->giocatoreParticipante[1]=NULL;
+        }
+
+        send_success_message(1,giocatore->socket,"vuoi continuare?");//la risposta è nel path nuovo
+    }
+    /*if(esito==SCONFITTA){}*/
+    if(esito==PAREGGIO){
+        //attendere le risposte delle due persone
+        //per il momento li faccio uscire dal gioco e basta
+        partita->giocatoreParticipante[0]->stato=IN_HOME;
+        partita->giocatoreParticipante[1]->stato=IN_HOME;
+        rimuovi_game_queue(partita);
+    
+    }
+
+}
+

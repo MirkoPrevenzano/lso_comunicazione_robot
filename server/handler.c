@@ -82,20 +82,15 @@ void HandlerInviaMovesPartita(GIOCATORE*giocatore,GAME*partita){
 void handler_game_response(GIOCATORE*giocatore,GAME*partita){
     pthread_mutex_lock(&gameListLock);
     printf("Richiesta della griglia di gioco ricevuta\n");
-    int indice;
-    if(giocatore==partita->giocatoreParticipante[0])
-        indice=1;
-    else
-        indice=0;
     //usa solo uno standard di nome per le funzioni camelCase, snake_case, ecc
-    HandlerInviaMovesPartita(partita->giocatoreParticipante[indice],partita);
+    HandlerInviaMovesPartita(giocatore,partita);
     pthread_mutex_unlock(&gameListLock);
 }
 
-void handler_game_responseAltroGiocatore(GIOCATORE*giocatore,GAME*partita){
+GIOCATORE* switchGiocatorePartita(GIOCATORE*giocatore,GAME*partita){
 
     if(giocatore==partita->giocatoreParticipante[0])
-      handler_game_response(partita->giocatoreParticipante[1],partita);
+      return partita->giocatoreParticipante[1];
     else
-       handler_game_response(partita->giocatoreParticipante[0],partita);
+       return partita->giocatoreParticipante[0];
 }

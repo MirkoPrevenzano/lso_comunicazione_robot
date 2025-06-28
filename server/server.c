@@ -223,13 +223,12 @@ void *handle_close(void *arg) {
             if (n <= 0) { // Il socket e' stato chiuso
                 printf("⚠️ Client %s disconnesso (monitor)\n", giocatore->nome);
                 if(giocatore->stato==IN_GIOCO){// MODIFICA: gestione di eventuali partite aperte 
-                //sem_post(&(partita->semaforo));//MODIFICA: in caso sia fermo davanti un wait
                     InviaVittoriaAltroGiocatore(giocatore);
                     printf("⚠️ Client %s è uscito dalla partita\n", giocatore->nome);
                 }
                    
                 pthread_mutex_lock(&playerListLock);
-                remove_game_by_player_id(giocatore->id);//ATTENZIONE:potrebbe eliminare un game in cui la'altro giocatore ne è diventato proprietario
+                remove_game_by_player_id(giocatore->id);
                 remove_request_by_player(giocatore);
                 queue_remove(giocatore->id);
                 
@@ -476,9 +475,11 @@ void checkRouter(char* buffer, GIOCATORE*nuovo_giocatore, int socket_nuovo, int 
                                         pthread_mutex_lock(&gameListLock);
                                         GAME*partita=searchPartitaById(id_partita);
                                         pthread_mutex_unlock(&gameListLock);
+                                        bool success = aggiorna_partita(partita,nuovo_giocatore,col,row);
+                                        if(success){
                                         handler_game_response(nuovo_giocatore,partita);
-                                        aggiorna_partita(partita,nuovo_giocatore,col,row);
-                                        handler_game_responseAltroGiocatore(nuovo_giocatore,partita);//introdotto questa funzione per import circolari
+                                        handler_game_response(switchGiocatorePartita(nuovo_giocatore,partita),partita);
+                                        }
                             }else{
                                     printf("Il campo 'row' non è presente o non è un numero.\n");
                                     send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
@@ -500,8 +501,9 @@ void checkRouter(char* buffer, GIOCATORE*nuovo_giocatore, int socket_nuovo, int 
                   if (id_item && cJSON_IsNumber(id_item)) {
                             int id_partita = id_item->valueint;
                             printf("ID partita: %d\n", id_partita);
+                            pthread_mutex_lock(&gameListLock);
                             GAME*partita = searchPartitaById(id_partita);
-                            sem_post(&(partita->semaforo));// MODIFICA:  in caso sia fermo davanti un wait
+                            pthread_mutex_unlock(&gameListLock);
                             InviaEsito(partita,SCONFITTA,nuovo_giocatore);
                             if(nuovo_giocatore==partita->giocatoreParticipante[0])
                                 InviaEsito(partita,VITTORIA,partita->giocatoreParticipante[1]);

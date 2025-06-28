@@ -47,6 +47,7 @@ typedef struct game{
 void new_game(int*leave_flag,char*buffer,GIOCATORE*giocatore);
 void send_success_message(int success, int socket, const char* message);
 void send_declined_request_message(int , GIOCATORE* );
+void rimuovi_game_queue(GAME*partita);
 
 void aggiungi_richiesta(int, GIOCATORE*);
 void rimuovi_richiesta(int , GIOCATORE*);
@@ -59,7 +60,7 @@ void remove_game_by_player_id(int id);
 void sendSuccessNewGame(int success, GIOCATORE*giocatore, int id_partita);
 void sendJoinGame(GIOCATORE*giocatore,GAME*partita);
 
-void aggiorna_partita(GAME*partita,GIOCATORE*giocatore,int col,int row);
+bool aggiorna_partita(GAME*partita,GIOCATORE*giocatore,int col,int row);
 bool aggiorna_griglia(GAME*partita,GIOCATORE*giocatore,int col,int row,int turno);
 void switchTurn(GAME*partita);
 Esito switchEsito(Esito esito);
@@ -70,7 +71,8 @@ bool controlla_pareggio(GAME*partita);
 bool controlla_vittoria(GAME*partita,int giocatore);
 
 void InviaVittoriaAltroGiocatore(GIOCATORE*giocatore);
-GAME* SearchPartitaBy(GIOCATORE*giocatore);
+GAME*SearchPartitaInCorsoByGiocatore(GIOCATORE*giocatore);
+void gestisci_esito_vittoria(GIOCATORE*giocatore,Esito esito,GAME*partita);
 
 
 #endif
