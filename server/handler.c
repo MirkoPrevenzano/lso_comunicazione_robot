@@ -91,3 +91,11 @@ void handler_game_response(GIOCATORE*giocatore,GAME*partita){
     HandlerInviaMovesPartita(partita->giocatoreParticipante[indice],partita);
     pthread_mutex_unlock(&gameListLock);
 }
+
+void handler_game_responseAltroGiocatore(GIOCATORE*giocatore,GAME*partita){
+
+    if(giocatore==partita->giocatoreParticipante[0])
+      handler_game_response(partita->giocatoreParticipante[1],partita);
+    else
+       handler_game_response(partita->giocatoreParticipante[0],partita);
+}

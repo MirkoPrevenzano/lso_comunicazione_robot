@@ -62,7 +62,15 @@ void sendJoinGame(GIOCATORE*giocatore,GAME*partita);
 void aggiorna_partita(GAME*partita,GIOCATORE*giocatore,int col,int row);
 bool aggiorna_griglia(GAME*partita,GIOCATORE*giocatore,int col,int row,int turno);
 void switchTurn(GAME*partita);
-Esito verifica_esito_partita(GAME*partita);
-void InviaEsito(GAME* partita,Esito esito);
+Esito switchEsito(Esito esito);
+int switchGiocatore(int giocatore);
+Esito verifica_esito_partita(GAME*partita,int giocatore);
+void InviaEsito(GAME* partita,Esito esito,GIOCATORE*giocatore);
+bool controlla_pareggio(GAME*partita);
+bool controlla_vittoria(GAME*partita,int giocatore);
+
+void InviaVittoriaAltroGiocatore(GIOCATORE*giocatore);
+GAME* SearchPartitaBy(GIOCATORE*giocatore);
+
 
 #endif

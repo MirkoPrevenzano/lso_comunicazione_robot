@@ -31,6 +31,8 @@ void HandlerInviaMovesPartita(GIOCATORE*giocatore,GAME*partita);
 
 void handler_game_response(GIOCATORE*giocatore,GAME*partita);
 
+void handler_game_responseAltroGiocatore(GIOCATORE*giocatore,GAME*partita);
+
 
 
 #endif

@@ -2,6 +2,21 @@
 
 Sistema Docker containerizzato per comunicazione tra server C e client Python GUI con supporto multi-client.
 
+## 🔨 Costruzione Immagini
+
+**IMPORTANTE**: Prima di avviare i client, costruisci le immagini Docker:
+
+```bash
+# Costruisci entrambe le immagini (server + client)
+sudo docker compose --profile single-client build
+
+# Oppure costruisci singolarmente
+sudo docker build -f Dockerfile.server -t lso_comunicazione_robot-server .
+sudo docker build -f Dockerfile.client -t lso_comunicazione_robot-client .
+```
+
+> ⚠️ **Nota sul Profilo**: Il client nel docker-compose.yml usa il profilo `single-client` per evitare conflitti con il sistema multi-client. Questo significa che `docker compose build` senza `--profile` costruisce solo il server.
+
 ## 🚀 Avvio Rapido
 
 ### Metodo 1: Script Interattivo (Raccomandato)

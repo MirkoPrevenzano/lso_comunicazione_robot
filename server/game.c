@@ -440,13 +440,17 @@ void aggiorna_partita(GAME*partita,GIOCATORE*giocatore,int col,int row){
         return;
     }else{
         bool success = aggiorna_griglia(partita,giocatore,col,row,turno);
-        if(success){}
-            Esito esito= verifica_esito_partita(partita);
-            if(esito!=NESSUN_ESITO)
-                InviaEsito(partita,esito);
-            else
+        if(success){
+            Esito esito = verifica_esito_partita(partita,turno+1);
+            GIOCATORE*giocatore2= partita->giocatoreParticipante[switchGiocatore(turno+1)-1];
+            if(esito!=NESSUN_ESITO){
+                InviaEsito(partita,esito,giocatore);
+                InviaEsito(partita,switchEsito(esito),giocatore2);
+            }else{
+                //handler_game_response(giocatore2,partita);
                 switchTurn(partita);
-    }
+            }
+    }}
     sem_post(&(partita->semaforo));
 }
 
@@ -474,9 +478,118 @@ bool aggiorna_griglia(GAME*partita,GIOCATORE*giocatore,int col,int row,int turno
 
 }
 
-Esito verifica_esito_partita(GAME*partita){
+Esito verifica_esito_partita(GAME*partita,int giocatore){
+    if(controlla_vittoria(partita,giocatore))
+        return VITTORIA;
+    else if(controlla_vittoria(partita,switchGiocatore(giocatore)))
+        return SCONFITTA;
+    else if(controlla_pareggio(partita))
+        return PAREGGIO;
+
     return NESSUN_ESITO;
 }
-void InviaEsito(GAME* partita,Esito esito){
 
+int switchGiocatore(int giocatore){
+     if(giocatore == 1) {
+        return 2; 
+    } else {
+       return 1; 
+    }
+}
+
+Esito switchEsito(Esito esito){
+    if(esito==VITTORIA)
+        return SCONFITTA;
+    else if(esito==SCONFITTA)
+        return VITTORIA;
+    else
+        return PAREGGIO;
+}
+
+bool controlla_vittoria(GAME*partita,int giocatore){   
+    TRIS(*matrice)[3]=partita->griglia;
+    
+for (int i = 0; i < 3; i++) {
+    if ((matrice[i][0] == giocatore && matrice[i][1] == giocatore && matrice[i][2] == giocatore) ||
+        (matrice[0][i] == giocatore && matrice[1][i] == giocatore && matrice[2][i] == giocatore)) {
+        return true; // Vittoria
+    }
+}
+// Diagonali
+if ((matrice[0][0] == giocatore && matrice[1][1] == giocatore && matrice[2][2] == giocatore) ||
+    (matrice[0][2] == giocatore && matrice[1][1] == giocatore && matrice[2][0] == giocatore)) {
+    return true; // Vittoria
+}
+
+return false; // Nessuna vittoria
+}
+
+bool controlla_pareggio(GAME*partita){
+    TRIS (*matrice)[3]=partita->griglia;
+        for(int i=0;i<3;i++)
+            for(int j=0;j<3;j++)
+                if(matrice[i][j]==VUOTO)
+                    return false;
+ 
+    return true;
+
+}
+
+void InviaEsito(GAME* partita,Esito esito,GIOCATORE*giocatore){
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "type", "game_response");//type esito_game
+    cJSON_AddNumberToObject(root, "game_id", partita->id);
+    if(esito==VITTORIA)
+        cJSON_AddStringToObject(root, "esito", "VITTORIA");
+    else if(esito==SCONFITTA)
+         cJSON_AddStringToObject(root, "esito", "SCONFITTA");
+    else
+         cJSON_AddStringToObject(root, "esito", "PAREGGIO");
+
+    cJSON *game_data = cJSON_CreateObject();
+    char griglia_str1[10]; // 9 positions + null terminator
+    for(int i = 0; i < 3; i++) {
+        for(int j = 0; j < 3; j++) {
+            griglia_str1[i*3 + j] = (char)(partita->griglia[i][j]);
+        }
+    }
+    griglia_str1[9] = '\0';
+    
+    cJSON_AddItemToObject(game_data, "TRIS", cJSON_CreateString(griglia_str1));        
+    cJSON_AddNumberToObject(game_data, "turno", partita->turno);
+    cJSON_AddItemToObject(root, "game_data", game_data);
+    
+
+    char *json_str = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root); 
+    printf("Invio griglia Esito partita al socket %d: %s\n", giocatore->socket, json_str);
+    fflush(stdout);
+    send(giocatore->socket,json_str,strlen(json_str),0);
+    free(json_str);
+
+}
+
+void InviaVittoriaAltroGiocatore(GIOCATORE*giocatore){
+    GAME* partita = SearchPartitaBy(giocatore);
+    if(giocatore==partita->giocatoreParticipante[0])
+        InviaEsito(partita,VITTORIA,partita->giocatoreParticipante[1]);
+    else
+        InviaEsito(partita,VITTORIA,partita->giocatoreParticipante[0]);
+
+}
+
+GAME*SearchPartitaBy(GIOCATORE*giocatore){
+    pthread_mutex_lock(&gameListLock);
+    for(int i=0;i< MAX_GAME ; i++){
+        if(Partite[i]->giocatoreParticipante[0] == giocatore){
+            pthread_mutex_unlock(&gameListLock);
+            return Partite[i];
+        }
+        if(Partite[i]->giocatoreParticipante[1] == giocatore){
+            pthread_mutex_unlock(&gameListLock);
+            return Partite[i];
+        }    
+    }
+    pthread_mutex_unlock(&gameListLock);
+    return NULL;
 }
