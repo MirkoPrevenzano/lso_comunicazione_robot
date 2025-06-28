@@ -1,36 +1,38 @@
-services:
-  server:
-    build:
+services: #definisce i servizi da avviare, nel nostro caso server e client
+  server: 
+    build: #definisce come costruire l'immagine del server
       context: .
       dockerfile: Dockerfile.server
-    container_name: tris-server
+    container_name: tris-server 
     ports:
-      - "8080:8080"
+      - "8080:8080" # Porta esposta: host:container
     networks:
-      - tris-network
-    restart: unless-stopped
+      - tris-network # Rete per la comunicazione tra container
+    restart: unless-stopped # Riavvia il server se si arresta in modo anomalo
 
   client:
     build:
       context: .
       dockerfile: Dockerfile.client
     environment:
-      - DISPLAY=${DISPLAY}
+      - DISPLAY=${DISPLAY}     # Passa il display X11 dell'host (es: :0). X11 è necessario per GUI permettere al client di mostrare la GUI
       - SERVER_HOST=server
       - SERVER_PORT=8080
     volumes:
-      - /tmp/.X11-unix:/tmp/.X11-unix:rw
-      - ${HOME}/.Xauthority:/root/.Xauthority:rw
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw  # Socket X11 per GUI. 
+      - ${HOME}/.Xauthority:/root/.Xauthority:rw # Permette al client di accedere al display X11 dell'host
     networks:
       - tris-network
     depends_on:
       - server
     # Template per client singolo - per più client usa gli script
     profiles:
-      - single-client
+      - single-client # Profilo per eseguire un singolo client
 
 networks:
   tris-network:
     driver: bridge
 
 
+# X Window System (comunemente chiamato X11) è un sistema di windowing grafico
+# che fornisce l'infrastruttura di base per un'interfaccia grafica utente

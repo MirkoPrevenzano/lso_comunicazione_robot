@@ -461,35 +461,40 @@ void checkRouter(char* buffer, GIOCATORE*nuovo_giocatore, int socket_nuovo, int 
                 if (!body_json) {
                     printf("Errore nel parsing del JSON body\n");
                     send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
-                } else {
+                } 
+                else {
                     cJSON *id_item = cJSON_GetObjectItem(body_json, "game_id"); 
                     cJSON *id_item_2 = cJSON_GetObjectItem(body_json, "col");
                     cJSON *id_item_3 = cJSON_GetObjectItem(body_json, "row");  
-                     if (id_item && cJSON_IsNumber(id_item)) {
+                    if (id_item && cJSON_IsNumber(id_item)) {
                             int id_partita = id_item->valueint;
                             printf("ID partita: %d\n", id_partita);
                             if (id_item_2 && cJSON_IsNumber(id_item_2)) {
-                                    if (id_item_3 && cJSON_IsNumber(id_item_3)) {
-                                        int col = id_item_2->valueint;
-                                        int row = id_item_3->valueint;
-                                        pthread_mutex_lock(&gameListLock);
-                                        GAME*partita=searchPartitaById(id_partita);
-                                        pthread_mutex_unlock(&gameListLock);
-                                        bool success = aggiorna_partita(partita,nuovo_giocatore,col,row);
-                                        if(success){
+                                if (id_item_3 && cJSON_IsNumber(id_item_3)) {
+                                    int col = id_item_2->valueint;
+                                    int row = id_item_3->valueint;
+                                    pthread_mutex_lock(&gameListLock);
+                                    GAME*partita=searchPartitaById(id_partita);
+                                    pthread_mutex_unlock(&gameListLock);
+                                    bool success = aggiorna_partita(partita,nuovo_giocatore,col,row);
+                                    if(success){
                                         handler_game_response(nuovo_giocatore,partita);
                                         handler_game_response(switchGiocatorePartita(nuovo_giocatore,partita),partita);
-                                        }
-                            }else{
+                                    }
+                                }else{
                                     printf("Il campo 'row' non è presente o non è un numero.\n");
                                     send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
-                        }}else{
-                            printf("Il campo 'col' non è presente o non è un numero.\n");
-                            send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
-                   }}else{
+                                }
+                            }else{
+                                printf("Il campo 'col' non è presente o non è un numero.\n");
+                                send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
+                            }
+                    }else{
                         printf("Il campo 'game_id' non è presente o non è un numero.\n");
                         send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
-                }}}
+                    }
+                }
+            }
             if(strcmp(path->valuestring, "/exit_game") == 0){
                 //ricevere intenzione di uscire dalla partita
                 cJSON *body_json = cJSON_Parse(body->valuestring);

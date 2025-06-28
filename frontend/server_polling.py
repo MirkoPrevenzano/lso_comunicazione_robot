@@ -147,12 +147,32 @@ class ServerPollingManager:
         print(f"❌ game:{game_id} rifiutata")
     
     def _hand_game_update(self, data):
+        """Gestisce aggiornamento partita"""
+        print(f"🔄 Aggiornamento partita ricevuto: {data}")
+        
+        # Aggiorna i dati condivisi sempre
         self.home_page.controller.shared_data['game_id'] = data.get('game_id')
         self.home_page.controller.shared_data['player_id_partecipante'] = data.get('player_id')
         self.home_page.controller.shared_data['game_data'] = data.get('game_data', {})
-        self.game_page.update_data()
-        print(f"🔄 Aggiornamento partita ricevuto: {request}")
-        """Gestisce aggiornamento partita"""
+        
+        # Verifica se siamo attualmente nella GamePage
+        current_frame = getattr(self.home_page.controller, 'current_frame', None)
+        
+        # Ottieni riferimento alla GamePage e aggiorna i dati solo se disponibile
+        try:
+            game_page = self.home_page.controller.frames.get("GamePage")
+            if game_page and hasattr(game_page, 'aggiorna_dati'):
+                # Usa direttamente aggiorna_dati per aggiornare la UI
+                game_data = data.get('game_data', {})
+                game_page.aggiorna_dati(game_data)
+                print(f"✅ Dati GamePage aggiornati via aggiorna_dati (frame corrente: {current_frame})")
+            else:
+                print("⚠️ GamePage non trovata o non ha metodo aggiorna_dati")
+                
+        except Exception as e:
+            print(f"❌ Errore aggiornamento GamePage: {type(e).__name__}: {e}")
+            import traceback
+            traceback.print_exc()
     
     def _hand_game_end(self, data):
         """Gestisce fine partita"""

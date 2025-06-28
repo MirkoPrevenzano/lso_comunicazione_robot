@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# Script to properly set up X11 forwarding and run multiple client containers
 
 # Funzione per pulire i container al termine
 cleanup() {
@@ -16,13 +15,13 @@ cleanup() {
 }
 
 # Gestisci CTRL+C per cleanup
-trap cleanup SIGINT SIGTERM
+trap cleanup SIGINT SIGTERM # Trap per pulire i container al termine. SIGINT e SIGTERM sono i segnali standard per l'interruzione del processo.
 
 echo "🚀 === SISTEMA COMUNICAZIONE ROBOT MULTI-CLIENT ==="
 echo
 
 # Richiedi numero di client da avviare
-if [ -z "$1" ]; then
+if [ -z "$1" ]; then # -z : controlla se la variabile è vuota
     echo "💭 Quanti client vuoi avviare? (default: 1, max consigliato: 4)"
     read -p "Numero client: " NUM_CLIENTS
     NUM_CLIENTS=${NUM_CLIENTS:-1}
@@ -45,7 +44,7 @@ xhost +local:docker
 
 # Export DISPLAY if not set
 if [ -z "$DISPLAY" ]; then
-    export DISPLAY=:0
+    export DISPLAY=:0 # Imposta DISPLAY a :0 se non è già definito
 fi
 
 echo "📺 DISPLAY is set to: $DISPLAY"
@@ -57,7 +56,7 @@ if [ ! -f "$HOME/.Xauthority" ]; then
 fi
 
 echo "🖥️  Starting server container first..."
-sudo docker compose up -d server
+sudo docker compose up -d server #-d # -d per eseguire in background
 
 echo "⏳ Waiting for server to be ready..."
 sleep 3
@@ -83,7 +82,7 @@ for i in $(seq 1 $NUM_CLIENTS); do
         -v $HOME/.Xauthority:/root/.Xauthority:rw \
         lso_comunicazione_robot-client &
     
-    CLIENT_PIDS[$i]=$!
+    CLIENT_PIDS[$i]=$! # Salva il PID del processo in background
     
     # Piccola pausa tra i client per evitare conflitti
     sleep 1
@@ -99,7 +98,7 @@ echo "📊 Monitoring dei client in corso..."
 
 # Attendi che tutti i client terminino
 for i in $(seq 1 $NUM_CLIENTS); do
-    wait ${CLIENT_PIDS[$i]} 2>/dev/null
+    wait ${CLIENT_PIDS[$i]} 2>/dev/null # Attendi il processo in background
 done
 
 cleanup

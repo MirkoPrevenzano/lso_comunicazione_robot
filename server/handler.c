@@ -56,13 +56,13 @@ void HandlerInviaMovesPartita(GIOCATORE*giocatore,GAME*partita){
     
     //{type: "game_response", game_id: partita->id, game_data: {TRIS:partita->griglia, turno: partita->turno}}
     cJSON *root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "type", "game_response");
+    cJSON_AddStringToObject(root, "type", "/game_response");
     cJSON_AddNumberToObject(root, "game_id", partita->id);
     cJSON *game_data = cJSON_CreateObject();
     char griglia_str1[10]; // 9 positions + null terminator
     for(int i = 0; i < 3; i++) {
         for(int j = 0; j < 3; j++) {
-            griglia_str1[i*3 + j] = (char)(partita->griglia[i][j]);
+            griglia_str1[i*3 + j] = (char)(partita->griglia[i][j]+'0'); // Converti int a char
         }
     }
     griglia_str1[9] = '\0';

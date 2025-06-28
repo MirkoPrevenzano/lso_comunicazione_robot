@@ -78,6 +78,34 @@ class GamePage(tk.Frame):
 
         # Stato del gioco
         self.current_turn = None
+        
+        # Polling per aggiornamenti di gioco
+        self.game_polling_active = False
+        self.game_polling_id = None
+
+    def start_game_polling(self):
+        """Avvia il polling specifico per la partita"""
+        if self.game_polling_active:
+            return
+        self.game_polling_active = True
+        self._poll_game_updates()
+        print("🎮 Polling partita avviato")
+
+    def stop_game_polling(self):
+        """Ferma il polling della partita"""
+        self.game_polling_active = False
+        if self.game_polling_id:
+            self.after_cancel(self.game_polling_id)
+            self.game_polling_id = None
+        print("🛑 Polling partita fermato")
+
+    def _poll_game_updates(self):
+        """
+        DEPRECATO: Il polling è ora gestito dal ServerPollingManager principale.
+        Questo metodo è mantenuto per compatibilità ma non dovrebbe essere usato.
+        """
+        print("⚠️ _poll_game_updates chiamato ma deprecato - ServerPollingManager gestisce il polling")
+        return
 
     def update_data(self):
         self.simbolo_assegnato = self.controller.shared_data.get("simbolo", "")
@@ -87,6 +115,9 @@ class GamePage(tk.Frame):
 
         self._assegna_simbolo()
         self.aggiorna_dati(self.controller.shared_data.get("game_data", {}))
+        
+        # NON avviamo più il polling qui - il ServerPollingManager gestisce tutto
+        print("🎮 GamePage update_data completato, polling gestito da ServerPollingManager")
 
     
 
@@ -106,8 +137,8 @@ class GamePage(tk.Frame):
         if risposta:
            try: 
                 data = json.loads(risposta)
-                if data.get("error"):
-                    messagebox.showerror("Errore", data.get("error", "Errore sconosciuto"))
+                if data.get("success") == 0:
+                    messagebox.showerror("Errore", data.get("message", "Errore sconosciuto"))
                 else:
                     self.aggiorna_dati(data)
            except json.JSONDecodeError:
@@ -117,7 +148,20 @@ class GamePage(tk.Frame):
 
     def aggiorna_dati(self, dati_game):
         """Aggiorna gli attributi e la UI con i dati ricevuti dal server."""
-        self.TRIS = dati_game.get("TRIS", [[0]*3 for _ in range(3)])
+        # TRIS arriva come string di 9 caratteri (es: "000120000")
+        print(f"🔧 DEBUG: Dati ricevuti dal server: {dati_game}")
+        tris_string = dati_game.get("TRIS", "000000000")
+        
+        print(f"🔧 DEBUG: TRIS ricevuto: '{tris_string}'")
+        
+        # Converte la stringa di 9 caratteri in matrice 3x3
+        self.TRIS = [[0 for _ in range(3)] for _ in range(3)]
+        for i in range(9):
+            row = i // 3  # posizione 0-2 → riga 0, posizione 3-5 → riga 1, etc.
+            col = i % 3   # posizione 0,3,6 → col 0, posizione 1,4,7 → col 1, etc.
+            self.TRIS[row][col] = int(tris_string[i])
+            
+        
         if dati_game.get("esito") is not None: 
             self.esito = dati_game.get("esito")
         self.turno = dati_game.get("turno")
@@ -186,6 +230,9 @@ class GamePage(tk.Frame):
         result = messagebox.askyesno("Conferma", "Vuoi tornare alla pagina principale? Il tuo abbandono darà sconfitta a tavolino.")
 
         if result:
+            # Ferma il polling di gioco se attivo
+            self.stop_game_polling()
+            
             self.id = None
             self.nomePartecipante = ""
             self.esito = None

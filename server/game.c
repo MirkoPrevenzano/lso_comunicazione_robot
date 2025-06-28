@@ -446,14 +446,24 @@ bool aggiorna_partita(GAME*partita,GIOCATORE*giocatore,int col,int row){
             if(esito!=NESSUN_ESITO){
                 InviaEsito(partita,esito,giocatore);
                 InviaEsito(partita,switchEsito(esito),giocatore2);
+                sem_post(&(partita->semaforo));
+                return false;
             }else{
                 //handler_game_response(giocatore2,partita);
                 switchTurn(partita);
             }
-    }}
+        }
+        else
+        {
+           send_success_message(0,giocatore->socket,"casella già occupata");
+           sem_post(&(partita->semaforo));
+           return false; 
+        }
+
+    }
     sem_post(&(partita->semaforo));
     return true;
-}return true;
+}
 
 void  switchTurn(GAME*partita){
     if(partita->turno == 0) {
@@ -468,12 +478,10 @@ void  switchTurn(GAME*partita){
 bool aggiorna_griglia(GAME*partita,GIOCATORE*giocatore,int col,int row,int turno){
     // Rimuovo il mutex qui perché il semaforo della partita già protegge l'accesso
     if(partita->griglia[col][row]!=0){
-        send_success_message(0,giocatore->socket,"casella già occupata");
         return false;
     }else{
         partita->griglia[col][row]=turno+1; //turno+1 perché il turno è 0 o 1, ma la griglia è 1 o 2
         printf("casella aggiornata con successo");
-        //send_success_message(1,giocatore->socket,"casella aggiornata con successo");
         return true;
     }
 
@@ -538,7 +546,7 @@ bool controlla_pareggio(GAME*partita){
 
 void InviaEsito(GAME* partita,Esito esito,GIOCATORE*giocatore){
     cJSON *root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "type", "game_response");//type esito_game
+    cJSON_AddStringToObject(root, "type", "/game_response");//type esito_game
     cJSON_AddNumberToObject(root, "game_id", partita->id);
     if(esito==VITTORIA)
         cJSON_AddStringToObject(root, "esito", "VITTORIA");
@@ -551,7 +559,7 @@ void InviaEsito(GAME* partita,Esito esito,GIOCATORE*giocatore){
     char griglia_str1[10]; // 9 positions + null terminator
     for(int i = 0; i < 3; i++) {
         for(int j = 0; j < 3; j++) {
-            griglia_str1[i*3 + j] = (char)(partita->griglia[i][j]);
+            griglia_str1[i*3 + j] = (char)(partita->griglia[i][j]+'0'); // Converti int a char
         }
     }
     griglia_str1[9] = '\0';
@@ -598,14 +606,10 @@ GAME*SearchPartitaInCorsoByGiocatore(GIOCATORE*giocatore){
 void gestisci_esito_vittoria(GIOCATORE*giocatore,Esito esito,GAME*partita){
 
     if(esito==VITTORIA){
-        if(giocatore==partita->giocatoreParticipante[1]){
-            partita->giocatoreParticipante[0]->stato=IN_HOME;
-            partita->giocatoreParticipante[0] = partita->giocatoreParticipante[1];
-            partita->giocatoreParticipante[1]=NULL;
-        }else{
-            partita->giocatoreParticipante[1]->stato=IN_HOME;
-            partita->giocatoreParticipante[1]=NULL;
-        }
+        partita->giocatoreParticipante[0]->stato=IN_HOME;
+        partita->giocatoreParticipante[1]->stato=IN_HOME;
+        partita->giocatoreParticipante[0] = giocatore;
+        partita->giocatoreParticipante[1]=NULL;
 
         send_success_message(1,giocatore->socket,"vuoi continuare?");//la risposta è nel path nuovo
     }
@@ -613,10 +617,7 @@ void gestisci_esito_vittoria(GIOCATORE*giocatore,Esito esito,GAME*partita){
     if(esito==PAREGGIO){
         //attendere le risposte delle due persone
         //per il momento li faccio uscire dal gioco e basta
-        partita->giocatoreParticipante[0]->stato=IN_HOME;
-        partita->giocatoreParticipante[1]->stato=IN_HOME;
-        rimuovi_game_queue(partita);
-    
+        giocatore->stato=IN_HOME;
     }
 
 }

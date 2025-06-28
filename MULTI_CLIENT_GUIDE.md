@@ -19,7 +19,7 @@ sudo docker build -f Dockerfile.client -t lso_comunicazione_robot-client .
 
 ## 🚀 Avvio Rapido
 
-### Metodo 1: Script Interattivo (Raccomandato)
+### Metodo 1: Script Interattivo
 ```bash
 # Avvia con prompt per numero client
 ./run_client.sh
@@ -60,23 +60,7 @@ sudo docker build -f Dockerfile.client -t lso_comunicazione_robot-client .
 ./manage_clients.sh clean         # Pulizia completa
 ```
 
-## 🏗️ Architettura
 
-```
-┌─────────────────┐    ┌─────────────────┐
-│   Client GUI 1  │    │   Client GUI 2  │
-│   (Python/TK)   │    │   (Python/TK)   │
-└─────────┬───────┘    └─────────┬───────┘
-          │                      │
-          └──────────┬───────────┘
-                     │
-         ┌───────────▼───────────┐
-         │     Server TCP C      │
-         │     (Port 8080)       │
-         └───────────────────────┘
-```
-
-## 🔧 Configurazione X11
 
 Il sistema gestisce automaticamente:
 - **Permessi X11**: `xhost +local:docker`
@@ -124,24 +108,12 @@ sudo docker compose build --no-cache
 sudo docker network ls | grep tris
 ```
 
-### Cleanup Completo
+### Pulizia completa
 ```bash
 ./manage_clients.sh clean
 ```
 
-## 📝 Note Tecniche
 
-- **Max client consigliati**: 4-6 (limiti di risorse)
-- **Rete Docker**: `tris-network` (bridge)
-- **Port mapping**: Server su localhost:8080
-- **Container naming**: `tris-server`, `tris-client-1`, `tris-client-2`, etc.
-
-## 🎯 Casi d'Uso
-
-1. **Test multiplayer**: Avvia 2+ client per testare partite
-2. **Demo sistema**: Mostra funzionalità a più utenti
-3. **Stress testing**: Verifica performance con molti client
-4. **Sviluppo**: Debug interazioni multi-utente
 
 ## 📦 Prerequisiti Altri PC
 
