@@ -1,4 +1,4 @@
-# 🎮 Sistema Comunicazione Robot Multi-Client
+# 🎮 Sistema TRIS Multi-Client
 
 Sistema Docker containerizzato per comunicazione tra server C e client Python GUI con supporto multi-client.
 
