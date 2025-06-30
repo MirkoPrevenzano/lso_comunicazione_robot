@@ -31,11 +31,11 @@ void aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario){
             for(int j = 0; j < MAX_GIOCATORI-1; j++) {
                 Partite[i]->richieste[j] = NULL;
             }
-            for(int i=0;i<3; i++){
+           /* for(int i=0;i<3; i++){
                for(int j=0;j<3;j++){
-                    Partite[i]->griglia[i][j]=0; // MODIFICA: Inizializza la griglia a 0
+                    Partite[i]->griglia[i][j]=0; // MODIFICA: Inizializza la griglia a 0 // MODIFICA 2 : da SEGMENTATION FAULT per qualche strano motivo
                 }
-            }
+            }*/
             
             //a cosa serve? il semaforo serve per sincronizzare l'accesso alla partita perchè può essere accessibile da più thread
             //con sem_init si inizializza il semaforo uno ad uno i parametri sono: il semaforo, il valore iniziale (0 o 1), e il valore di condivisione (0 per processo, 1 per thread)
@@ -553,12 +553,16 @@ void InviaEsito(GAME* partita,Esito esito,GIOCATORE*giocatore){
     cJSON *root = cJSON_CreateObject();
     cJSON_AddStringToObject(root, "type", "/game_response");//type esito_game
     cJSON_AddNumberToObject(root, "game_id", partita->id);
-    if(esito==VITTORIA)
+    if(esito==VITTORIA){
         cJSON_AddStringToObject(root, "esito", "VITTORIA");
+        cJSON_AddStringToObject(root, "messaggio", "vuoi continuare?");
+    }
     else if(esito==SCONFITTA)
          cJSON_AddStringToObject(root, "esito", "SCONFITTA");
-    else
-         cJSON_AddStringToObject(root, "esito", "PAREGGIO");
+    else{
+        cJSON_AddStringToObject(root, "esito", "PAREGGIO");
+        cJSON_AddStringToObject(root, "messaggio", "rivincita?");
+    }
 
     cJSON *game_data = cJSON_CreateObject();
     char griglia_str1[10]; // 9 positions + null terminator
@@ -615,8 +619,6 @@ void gestisci_esito_vittoria(GIOCATORE*giocatore,Esito esito,GAME*partita){
         partita->giocatoreParticipante[1]->stato=IN_HOME;
         partita->giocatoreParticipante[0] = giocatore;
         partita->giocatoreParticipante[1]=NULL;
-
-        send_success_message(1,giocatore->socket,"vuoi continuare?");//la risposta è nel path nuovo
     }
     /*if(esito==SCONFITTA){}*/
     if(esito==PAREGGIO){

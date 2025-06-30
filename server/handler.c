@@ -45,7 +45,7 @@ void handlerInviaGames(int  socket_nuovo){
 GAME * searchPartitaById(int id){
     for(int i=0;i<MAX_GAME;i++)
         if(Partite[i]->id==id){
-            pthread_mutex_unlock(&gameListLock);
+            //pthread_mutex_unlock(&gameListLock);
             return Partite[i];
         }
     return NULL;
