@@ -28,12 +28,12 @@ case "$1" in
         echo "🖥️  Starting client..."
         # Permetti al client di accedere al display X11
         xhost +local:docker 2>/dev/null || echo "⚠️  xhost non disponibile, GUI potrebbe non funzionare"
-        docker compose --profile client up client
+        docker compose --profile single-client up client
         ;;
     "all")
         echo "🚀 Starting server and client..."
         xhost +local:docker 2>/dev/null || echo "⚠️  xhost non disponibile, GUI potrebbe non funzionare"
-        docker compose --profile client up
+        docker compose --profile single-client up
         ;;
     "stop")
         echo "🛑 Stopping containers..."

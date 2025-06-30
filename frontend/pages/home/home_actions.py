@@ -1,6 +1,7 @@
 """Gestione delle azioni per richieste e partite nella home page"""
 
 import json
+from tkinter import messagebox
 from client_network import send_to_server
 from constants import STATO_IN_ATTESA, ERROR_SERVER_RESPONSE
 
@@ -20,17 +21,14 @@ class HomeActions:
             
             data = json.loads(response)
             if data.get("success") == 1:
-                self.home_page.welcome_label.config(text=data.get("message"), foreground="green")
-                # Aggiorna la vista se siamo nelle partite in attesa
-                if self.home_page.current_view == "waiting_games":
-                    self.home_page.update_waiting_games()
+                messagebox.showinfo("Partita Creata", data.get("message", "Partita creata con successo!"))               
             else:
-                self.home_page.welcome_label.config(text=data.get("message"), foreground="red")
+                messagebox.showerror("Errore", data.get("message", "Errore nella creazione della partita"))
                 
         except json.JSONDecodeError:
-            self.home_page.welcome_label.config(text=ERROR_SERVER_RESPONSE, foreground="red")
+            messagebox.showerror("Errore", ERROR_SERVER_RESPONSE)
         except Exception as e:
-            self.home_page.welcome_label.config(text=f"Errore: {str(e)}", foreground="red")
+            messagebox.showerror("Errore", f"Si è verificato un errore: {str(e)}")
     
     def add_request(self, game_id):
         """Invia una richiesta per unirsi a una partita specifica (ex join_game)"""
@@ -47,15 +45,16 @@ class HomeActions:
                     'player_id': self.home_page.controller.shared_data.get('player_id', 'unknown'),
                     'stato': STATO_IN_ATTESA
                 }
-                self.home_page.welcome_label.config(text=data.get("message"), foreground="green")
+                messagebox.showinfo("Richiesta Inviata", data.get("message", "Richiesta inviata con successo!"))
                 self.home_page.request_manager.add_sent_request(new_request)
             else:
-                self.home_page.welcome_label.config(text=data.get("message"), foreground="red")
+                messagebox.showerror("Errore", data.get("message", "Errore nell'invio della richiesta"))
                 
         except json.JSONDecodeError:
-            self.home_page.welcome_label.config(text=ERROR_SERVER_RESPONSE, foreground="red")
+            messagebox.showerror("Errore", ERROR_SERVER_RESPONSE)
         except Exception as e:
-            self.home_page.welcome_label.config(text=f"Errore: {str(e)}", foreground="red")
+            messagebox.showerror("Errore", f"Si è verificato un errore: {str(e)}")
+
     
     def accept_request(self, player_id, game_id):
         """Accetta una richiesta ricevuta"""
@@ -69,8 +68,7 @@ class HomeActions:
             if data.get("success") == 1:
                 # Rimuovi la richiesta dalla lista locale usando request_manager
                 self.home_page.request_manager.remove_received_request(player_id, game_id)
-                
-                self.home_page.welcome_label.config(text="Richiesta accettata!", foreground="green")
+                messagebox.showinfo("Richiesta Accettata", data.get("message", "Richiesta accettata con successo!"))
                 print(f"✅ Richiesta player:{player_id} game:{game_id} accettata e rimossa dalla lista")
                 
                 # Vai alla GamePage se fornito game_id
@@ -83,12 +81,12 @@ class HomeActions:
                 self.home_page.stop_periodic_update_content()
                 self.home_page.controller.show_frame("GamePage")
             else:
-                self.home_page.welcome_label.config(text="Errore nell'accettare la richiesta", foreground="red")
+                messagebox.showerror("Errore", data.get("message", "Errore nell'accettare la richiesta"))
                 
         except json.JSONDecodeError:
-            self.home_page.welcome_label.config(text=ERROR_SERVER_RESPONSE, foreground="red")
+            messagebox.showerror("Errore", ERROR_SERVER_RESPONSE)
         except Exception as e:
-            self.home_page.welcome_label.config(text=f"Errore: {str(e)}", foreground="red")
+            messagebox.showerror("Errore", f"Si è verificato un errore: {str(e)}")
     
     def decline_request(self, player_id, game_id):
         """Rifiuta una richiesta ricevuta"""
@@ -103,17 +101,16 @@ class HomeActions:
             if data.get("success") == 1:
                 # Rimuovi la richiesta dalla lista locale usando request_manager
                 self.home_page.request_manager.remove_received_request(player_id, game_id)
-                
-                self.home_page.welcome_label.config(text="Richiesta rifiutata", foreground="orange")
+                messagebox.showinfo("Richiesta Rifiutata", data.get("message", "Richiesta rifiutata con successo!"))
                 print(f"❌ Richiesta player:{player_id} game:{game_id} rifiutata e rimossa dalla lista")
                 self.home_page.update_received_requests()
             else:
-                self.home_page.welcome_label.config(text="Errore nel rifiutare la richiesta", foreground="red")
+                messagebox.showerror("Errore", data.get("message", "Errore nel rifiutare la richiesta"))
                 
         except json.JSONDecodeError:
-            self.home_page.welcome_label.config(text=ERROR_SERVER_RESPONSE, foreground="red")
+            messagebox.showerror("Errore", ERROR_SERVER_RESPONSE)
         except Exception as e:
-            self.home_page.welcome_label.config(text=f"Errore: {str(e)}", foreground="red")
+            messagebox.showerror("Errore", f"Si è verificato un errore: {str(e)}")
     
     def cancel_request(self, player_id, game_id):
         """Annulla una richiesta effettuata"""
@@ -133,17 +130,16 @@ class HomeActions:
                 
                 message = data.get("message", "Richiesta annullata")
                 print(f"🗑️ DEBUG: Messaggio: {message}")
-                self.home_page.welcome_label.config(text=message, foreground="orange")
+                messagebox.showinfo("Richiesta Annullata", message)
                 print(f"🗑️ Richiesta player:{player_id} game:{game_id} annullata e rimossa dalla lista")
                 self.home_page.update_sent_requests()
             else:
                 error_message = data.get("message", "Errore nell'annullare la richiesta")
                 print(f"🗑️ DEBUG: Errore: {error_message}")
-                self.home_page.welcome_label.config(text=error_message, foreground="red")
+                messagebox.showerror("Errore", error_message)
                 
         except json.JSONDecodeError as e:
-            print(f"🗑️ DEBUG: Errore JSON: {e}")
-            self.home_page.welcome_label.config(text=ERROR_SERVER_RESPONSE, foreground="red")
+            messagebox.showerror("Errore", ERROR_SERVER_RESPONSE)
         except Exception as e:
             print(f"🗑️ DEBUG: Errore generico: {type(e).__name__}: {str(e)}")
-            self.home_page.welcome_label.config(text=f"Errore: {str(e)}", foreground="red")
+            messagebox.showerror("Errore", f"Si è verificato un errore: {str(e)}")

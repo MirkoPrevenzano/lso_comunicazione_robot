@@ -1,6 +1,6 @@
 import json
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 import time
 
 from client_network import send_to_server, receive_from_server, connect_to_server, close_connections
@@ -239,13 +239,12 @@ class HomePage(tk.Frame):
         except ConnectionError as e:
             print(f"❌ Errore di connessione: {e}")
             games = []
-            if hasattr(self, 'welcome_label'):
-                self.welcome_label.config(text="Errore di connessione al server", foreground="red")
+            messagebox.showerror("Errore di connessione", "Impossibile connettersi al server. Verifica la connessione e riprova.")
         except Exception as e:
             print(f"❌ Errore generico: {type(e).__name__}: {e}")
             games = []
-            if hasattr(self, 'welcome_label'):
-                self.welcome_label.config(text=f"Errore: {str(e)}", foreground="red")
+            messagebox.showerror("Errore", f"Si è verificato un errore: {str(e)}")
+     
 
         # Aggiorna UI in modo sicuro
         try:
