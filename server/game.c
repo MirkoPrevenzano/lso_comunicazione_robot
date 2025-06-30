@@ -555,16 +555,12 @@ void InviaEsito(GAME* partita,Esito esito,GIOCATORE*giocatore){
     cJSON *root = cJSON_CreateObject();
     cJSON_AddStringToObject(root, "type", "/game_response");//type esito_game
     cJSON_AddNumberToObject(root, "game_id", partita->id);
-    if(esito==VITTORIA){
-        cJSON_AddStringToObject(root, "esito", "VITTORIA");
+    //passo l'esito della partita
+    cJSON_AddNumberToObject(root, "esito", esito);
+    if(esito==VITTORIA)
         cJSON_AddStringToObject(root, "messaggio", "vuoi continuare?");
-    }
-    else if(esito==SCONFITTA)
-         cJSON_AddStringToObject(root, "esito", "SCONFITTA");
-    else{
-        cJSON_AddStringToObject(root, "esito", "PAREGGIO");
+    else if(esito==PAREGGIO)
         cJSON_AddStringToObject(root, "messaggio", "rivincita?");
-    }
 
     cJSON *game_data = cJSON_CreateObject();
     char griglia_str1[10]; // 9 positions + null terminator

@@ -13,10 +13,10 @@
 #define MAX_GIOCATORI 8
 
 typedef enum {
+    NESSUN_ESITO,
     VITTORIA,
     PAREGGIO,
-    SCONFITTA,
-    NESSUN_ESITO
+    SCONFITTA
 } Esito;
 
 typedef enum {

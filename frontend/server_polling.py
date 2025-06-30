@@ -194,9 +194,9 @@ class ServerPollingManager:
         game_page = self._get_game_page()
         if game_page and hasattr(game_page, 'aggiorna_dati'):
             try:
-                game_data = data.get('game_data', {})
-                print(f"🔧 DEBUG: Aggiornando GamePage con dati: {game_data}")
-                game_page.aggiorna_dati(game_data)
+                game_page.aggiorna_dati(data.get('game_data', {}),
+                                        esito=data.get('esito'),
+                                        messaggio=data.get('messaggio'))
                 print(f"✅ GamePage aggiornata (frame corrente: {current_frame})")
             except Exception as e:
                 print(f"❌ Errore aggiornamento GamePage: {type(e).__name__}: {e}")

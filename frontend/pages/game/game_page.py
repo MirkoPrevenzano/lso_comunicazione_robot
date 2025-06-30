@@ -2,7 +2,7 @@ import json
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-from client_network import receive_from_server, send_to_server
+from client_network import send_to_server
 
 class GamePage(tk.Frame):
     def __init__(self, parent, controller):
@@ -14,7 +14,6 @@ class GamePage(tk.Frame):
         self.id = None
         self.nomePartecipante = ""
         self.TRIS = [[0 for _ in range(3)] for _ in range(3)]
-        self.esito = None
         self.turno = None
         self.simbolo_assegnato = None
         
@@ -78,34 +77,6 @@ class GamePage(tk.Frame):
 
         # Stato del gioco
         self.current_turn = None
-        
-        # Polling per aggiornamenti di gioco
-        self.game_polling_active = False
-        self.game_polling_id = None
-
-    def start_game_polling(self):
-        """Avvia il polling specifico per la partita"""
-        if self.game_polling_active:
-            return
-        self.game_polling_active = True
-        self._poll_game_updates()
-        print("🎮 Polling partita avviato")
-
-    def stop_game_polling(self):
-        """Ferma il polling della partita"""
-        self.game_polling_active = False
-        if self.game_polling_id:
-            self.after_cancel(self.game_polling_id)
-            self.game_polling_id = None
-        print("🛑 Polling partita fermato")
-
-    def _poll_game_updates(self):
-        """
-        DEPRECATO: Il polling è ora gestito dal ServerPollingManager principale.
-        Questo metodo è mantenuto per compatibilità ma non dovrebbe essere usato.
-        """
-        print("⚠️ _poll_game_updates chiamato ma deprecato - ServerPollingManager gestisce il polling")
-        return
 
     def update_data(self):
         self.simbolo_assegnato = self.controller.shared_data.get("simbolo", "")
@@ -116,8 +87,6 @@ class GamePage(tk.Frame):
         self._assegna_simbolo()
         self.aggiorna_dati(self.controller.shared_data.get("game_data", {}))
         
-        # NON avviamo più il polling qui - il ServerPollingManager gestisce tutto
-        print("🎮 GamePage update_data completato, polling gestito da ServerPollingManager")
 
     
 
@@ -140,16 +109,17 @@ class GamePage(tk.Frame):
                 if data.get("success") == 0:
                     messagebox.showerror("Errore", data.get("message", "Errore sconosciuto"))
                 else:
-                    self.aggiorna_dati(data.get("game_data", {}))
+                    self.aggiorna_dati(data.get("game_data", {}), 
+                                       esito=data.get("esito"), 
+                                       messaggio=data.get("messaggio"))
            except json.JSONDecodeError:
                print("Errore nella decodifica della risposta JSON.")
         else:
             print("Errore nell'invio della mossa al server.")
 
-    def aggiorna_dati(self, dati_game):
+    def aggiorna_dati(self, dati_game, esito=None, messaggio=None):
         """Aggiorna gli attributi e la UI con i dati ricevuti dal server."""
         # TRIS arriva come string di 9 caratteri (es: "000120000")
-        print(f"🔧 DEBUG: Dati ricevuti dal server: {dati_game}")
         tris_string = dati_game.get("TRIS", "000000000")
         
         print(f"🔧 DEBUG: TRIS ricevuto: '{tris_string}'")
@@ -162,24 +132,22 @@ class GamePage(tk.Frame):
             self.TRIS[row][col] = int(tris_string[i])
             
         
-        if dati_game.get("esito") is not None: 
-            self.esito = dati_game.get("esito")
         self.turno = dati_game.get("turno")
-        if self._gestisci_esito(dati_game.get("messaggio", "")):
+        if esito is not None and self._gestisci_esito(messaggio, esito):
             return
         self._aggiorna_labels()
         self._aggiorna_griglia()
 
-    def _gestisci_esito(self, messaggio):
+    def _gestisci_esito(self, messaggio, esito):
         """Gestisce la visualizzazione dell'esito della partita."""
-        if self.esito is not None and self.esito != 0:
+        if esito is not None and esito != 0:
             esito_text = "Partita terminata: "
-            if self.esito == 1:
+            if esito == 1:
                 esito_text += "Vittoria!"
-            elif self.esito == 2:
-                esito_text += "Sconfitta!"
-            else:
+            elif esito == 2:
                 esito_text += "Pareggio!"
+            else:
+                esito_text += "Sconfitta!"
             messagebox.showinfo("Esito partita", esito_text)
             if( messaggio):
                 self._gestisci_messaggio(messaggio)
@@ -229,21 +197,17 @@ class GamePage(tk.Frame):
         """Torna alla pagina principale."""
         result = messagebox.askyesno("Conferma", "Vuoi tornare alla pagina principale? Il tuo abbandono darà sconfitta a tavolino.")
 
-        if result:
-            # Ferma il polling di gioco se attivo
-            self.stop_game_polling()
-            
-            self.id = None
+        if result:            
             self.nomePartecipante = ""
-            self.esito = None
             self.turno = None
             self.TRIS = [[0 for _ in range(3)] for _ in range(3)]
             send_to_server("/exit_game", {"game_id": self.id})
+            self.id = None
             self.controller.show_frame("HomePage")
     
     def _gestisci_messaggio(self, messaggio):
         """Richiede se vuole rifare una nuova partita."""
-        result =messagebox.askyesno("Nuova Partita", messaggio)
+        result =messagebox.askyesno("Nuova Partita:", messaggio)
         if result:
             self.reset_game()
             self.controller.show_frame("HomePage")
@@ -255,7 +219,6 @@ class GamePage(tk.Frame):
         """Resetta lo stato del gioco."""
         self.id = None
         self.nomePartecipante = ""
-        self.esito = None
         self.turno = None
         self.TRIS = [[0 for _ in range(3)] for _ in range(3)]
         self._aggiorna_griglia()

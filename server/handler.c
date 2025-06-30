@@ -60,13 +60,8 @@ void HandlerInviaMovesPartita(GIOCATORE*giocatore,GAME*partita){
     cJSON_AddNumberToObject(root, "game_id", partita->id);
     cJSON *game_data = cJSON_CreateObject();
     char griglia_str1[10]; // 9 positions + null terminator
-    
-    // DEBUG: Conferma valori enum
-    printf("🔧 DEBUG ENUM: VUOTO=%d, X=%d, O=%d\n", VUOTO, X, O);
-    
     for(int i = 0; i < 3; i++) {
         for(int j = 0; j < 3; j++) {
-            printf("🔧 DEBUG: griglia[%d][%d] = %d\n", i, j, partita->griglia[i][j]);
             griglia_str1[i*3 + j] = (char)(partita->griglia[i][j]+'0'); // Converti int a char
         }
     }
