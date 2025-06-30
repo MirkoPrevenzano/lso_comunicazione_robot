@@ -10,7 +10,7 @@
 #include <errno.h>
 #include <semaphore.h>
 #include <cjson/cJSON.h> //installata libreria esterna
-#include <time.h>
+#include <linux/time.h>
 #define MAX_GIOCATORI 8
 
 typedef enum {
@@ -77,7 +77,7 @@ void gestisci_esito_vittoria(GIOCATORE*giocatore,Esito esito,GAME*partita);
 
 void resetGame(GAME*partita);
 void GestionePareggioGame(GAME*partita,GIOCATORE*giocatore,bool risposta);
-void inviaMessaggioRivincita(GIOCATORE *giocatore,int risposta,int game_id);
+void inviaMessaggioRivincita(GIOCATORE *giocatore,int risposta,GAME*partita);
 
 
 #endif
