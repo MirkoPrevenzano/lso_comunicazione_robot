@@ -1,5 +1,6 @@
 #include "game.h"
 #include "server.h"
+#include <linux/time.h>
 
 void aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario){
 
@@ -665,16 +666,16 @@ void GestionePareggioGame(GAME*partita,GIOCATORE*giocatore,bool risposta){
         sem_post(&(partita->semaforo));
         pthread_mutex_unlock(&gameListLock);
         
-        while(partita->turno!=0 || partita->turno!=2 || partita->turno!=-2){
+        while(partita->turno != 0 && partita->turno != 2 && partita->turno != -2){
             int ret = sem_timedwait(&(partita->semaforo), &ts);
             if (ret == -1) {
                 printf("Timeout scaduto, non ho ricevuto il segnale in tempo\n");
                 inviaMessaggioRivincita(giocatore,0,-1);
                 if(partita)
                     rimuovi_game_queue(partita);
-                    return;
+                return;
             }
-            break;
+            // Esci dal ciclo solo se la condizione non è più vera
         }
 
         if(partita->turno==2){
@@ -687,14 +688,12 @@ void GestionePareggioGame(GAME*partita,GIOCATORE*giocatore,bool risposta){
             sem_post(&(partita->semaforo));
 
             inviaMessaggioRivincita(giocatore,1,partita->id);
-        }else if(partita->turno==-2){
+        }else if(partita && partita->turno==-2){
             inviaMessaggioRivincita(giocatore,0,-1);
-            if(partita)
-                rimuovi_game_queue(partita);
-        }else if(partita->turno==0){
+            rimuovi_game_queue(partita);
+        }else if(partita && partita->turno==0){
             inviaMessaggioRivincita(giocatore,0,-1);
-            if(partita)
-                rimuovi_game_queue(partita);
+            rimuovi_game_queue(partita);
         }
 
     }

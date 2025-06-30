@@ -150,7 +150,7 @@ class GamePage(tk.Frame):
                 esito_text += "Sconfitta!"
             messagebox.showinfo("Esito partita", esito_text)
             if( messaggio):
-                self._gestisci_messaggio(messaggio)
+                self._gestisci_messaggio(messaggio, esito)
             else:
                 self.controller.show_frame("HomePage")
             return True
@@ -205,14 +205,32 @@ class GamePage(tk.Frame):
             self.id = None
             self.controller.show_frame("HomePage")
     
-    def _gestisci_messaggio(self, messaggio):
+    def _gestisci_messaggio(self, messaggio, esito):
         """Richiede se vuole rifare una nuova partita."""
         result =messagebox.askyesno("Nuova Partita:", messaggio)
-        if result:
-            self.reset_game()
+        self.reset_game()
+        if(esito == 1):
+            path = "/vittoria_game"
+            risposta =send_to_server(path, {"game_id": self.id, "risposta": result})
+            if(risposta.get("success") == 1):
+                messagebox.showinfo("Partita", risposta.get("message"))
+            else:
+                messagebox.showerror("Errore", risposta.get("message", "Errore sconosciuto"))
             self.controller.show_frame("HomePage")
-        else:
-            self.torna_home()
+            #il server deve semplicemente fare reset però in caso di successo deve inviare messaggio
+            
+        elif esito == 2:
+            path = "/pareggio_game"
+            risposta = send_to_server(path, {"game_id": self.id, "risposta": result})
+            if risposta.get("success") == 1:
+                messagebox.showinfo("Partita", risposta.get("message"), "Rivincita accettata")
+            elif risposta.get("success") == 2:
+                messagebox.showinfo("Partita", risposta.get("message"), "Rivincita rifiutata")
+                self.controller.show_frame("HomePage")
+            else:
+                messagebox.showerror("Errore", risposta.get("message", "Errore sconosciuto"))
+                self.controller.show_frame("HomePage")
+            
 
 
     def reset_game(self):
