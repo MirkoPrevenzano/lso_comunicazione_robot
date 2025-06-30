@@ -1,6 +1,5 @@
 #include "game.h"
 #include "server.h"
-#include <linux/time.h>
 
 void aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario){
 
@@ -666,19 +665,19 @@ void GestionePareggioGame(GAME*partita,GIOCATORE*giocatore,bool risposta){
         sem_post(&(partita->semaforo));
         pthread_mutex_unlock(&gameListLock);
         
-        while(partita->turno != 0 && partita->turno != 2 && partita->turno != -2){
+        while(partita->turno!=0 && partita->turno!=2 && partita->turno!=-2){
             int ret = sem_timedwait(&(partita->semaforo), &ts);
             if (ret == -1) {
                 printf("Timeout scaduto, non ho ricevuto il segnale in tempo\n");
-                inviaMessaggioRivincita(giocatore,0,-1);
+                inviaMessaggioRivincita(giocatore,0,NULL);
                 if(partita)
                     rimuovi_game_queue(partita);
                 return;
             }
-            // Esci dal ciclo solo se la condizione non è più vera
+    
         }
 
-        if(partita->turno==2){
+        if(partita && partita->turno==2){
             giocatore->stato=IN_GIOCO;
             partita->stato_partita=IN_CORSO;
 
@@ -687,35 +686,30 @@ void GestionePareggioGame(GAME*partita,GIOCATORE*giocatore,bool risposta){
             resetGame(partita);
             sem_post(&(partita->semaforo));
 
-            inviaMessaggioRivincita(giocatore,1,partita->id);
+            inviaMessaggioRivincita(giocatore,1,partita);
+            return;
         }else if(partita && partita->turno==-2){
-            inviaMessaggioRivincita(giocatore,0,-1);
-            rimuovi_game_queue(partita);
+                rimuovi_game_queue(partita);
         }else if(partita && partita->turno==0){
-            inviaMessaggioRivincita(giocatore,0,-1);
-            rimuovi_game_queue(partita);
+                rimuovi_game_queue(partita);
         }
+
+        inviaMessaggioRivincita(giocatore,0,NULL);
 
     }
 }
 
 
-void inviaMessaggioRivincita(GIOCATORE *giocatore,int risposta,int game_id){
-    cJSON *root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "type", "/game_pareggio");
+void inviaMessaggioRivincita(GIOCATORE *giocatore,int risposta,GAME*partita){
+    
     if(risposta){
-        cJSON_AddNumberToObject(root, "game_id", game_id);
-        cJSON_AddStringToObject(root, "messaggio", "rivincità accettata");
-    }else
-        cJSON_AddStringToObject(root, "messaggio", "rivincità rifiutata o timeout");
-
-    char *json_str = cJSON_PrintUnformatted(root);
-    cJSON_Delete(root); 
-    printf("Invio al socket %d: %s\n", giocatore->socket, json_str);
-    fflush(stdout);
-    send(giocatore->socket,json_str,strlen(json_str),0);
-    free(json_str);
-
+        if(partita){
+        send_success_message(1,giocatore->socket,"rivincità accettata");
+        handler_game_response(giocatore,partita);
+        }
+    }else{
+        send_success_message(2,giocatore->socket,"rivincità rifiutata o timeout");
+    } 
     
 }
 
@@ -728,3 +722,47 @@ void inviaMessaggioRivincita(GIOCATORE *giocatore,int risposta,int game_id){
     no          no    => turno-2 (-1-1)
                 no    => turno -1
                 si    => turno  1             */
+
+
+
+/*void GestionePareggioGame(GAME*partita,GIOCATORE*giocatore,bool risposta){
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+        
+    // Impostiamo il timeout di 30 secondi
+    ts.tv_sec += 30;
+
+    pthread_mutex_lock(&gameListLock);
+    if(risposta){
+        if(partita->cond_pareggio==false){
+            partita->cond_pareggio=true
+            pthread_mutex_unlock(&gameListLock);
+            int ret = sem_timedwait(&(partita->semaforo), &ts);
+            if (ret == -1) {
+                printf("Timeout scaduto, non ho ricevuto il segnale in tempo\n");
+                inviaMessaggioRivincita(giocatore,0,NULL);
+                if(partita)
+                    rimuovi_game_queue(partita);
+                    return;
+            }
+
+        }
+        if(partita->cond_pareggio==true){
+            sem_post(&(partita->semaforo));
+            pthread_mutex_unlock(&gameListLock);
+            giocatore->stato=IN_GIOCO;
+            partita->stato_partita=IN_CORSO;
+            resetGame(partita);
+            inviaMessaggioRivincita(giocatore,1,partita);
+        }
+    
+    }else{
+        if(partita->cond_pareggio==false)
+        TO-DO
+    
+    
+    }
+
+
+
+}*/
