@@ -439,12 +439,16 @@ void checkRouter(char* buffer, GIOCATORE*nuovo_giocatore, int socket_nuovo, int 
                       if (id_item && cJSON_IsNumber(id_item)) {
                         int id_partita = id_item->valueint;
                             if(id_item_2 && cJSON_IsBool(id_item_2)) {
-                                bool risposta = id_item_2->valueint;//valuebool?
+                                bool risposta = id_item_2->valueint;
+                                pthread_mutex_lock(&gameListLock);
+                                GAME* partita = searchPartitaById(id_partita);
+                                pthread_mutex_unlock(&gameListLock);
                                 if(risposta){
+                                    resetGame(partita);
                                     printf("il giocatore vincitore (ID : %d) ha deciso di diventare proprietario del gioco (ID : %d) ",nuovo_giocatore->id,id_partita);
                                 }else{
                                     printf("il giocatore vincitore (ID : %d) ha deciso di non diventare proprietario del gioco (ID : %d) ",nuovo_giocatore->id,id_partita);
-                                    rimuovi_game_queue(searchPartitaById(id_partita));
+                                    rimuovi_game_queue(partita);
                                 }
                     }else{
                             printf("Il campo 'risposta' non è presente o non è booleano.\n");
@@ -458,7 +462,34 @@ void checkRouter(char* buffer, GIOCATORE*nuovo_giocatore, int socket_nuovo, int 
                     
             }
             else if(strcmp(path->valuestring, "/pareggio_game") == 0){
-                    
+                      cJSON *body_json = cJSON_Parse(body->valuestring);
+                if (!body_json) {
+                    printf("Errore nel parsing del JSON body\n");
+                    send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
+                } else {
+                     cJSON *id_item = cJSON_GetObjectItem(body_json, "game_id");
+                     cJSON *id_item_2 = cJSON_GetObjectItem(body_json, "risposta");
+                      if (id_item && cJSON_IsNumber(id_item)) {
+                        int id_partita = id_item->valueint;
+                            if(id_item_2 && cJSON_IsBool(id_item_2)) {
+                                bool risposta = id_item_2->valueint;
+                                pthread_mutex_lock(&gameListLock);
+                                GAME* partita = searchPartitaById(id_partita);
+                                pthread_mutex_unlock(&gameListLock);
+                                if(risposta){
+                                    GestionePareggioGame(partita,nuovo_giocatore,risposta);
+                                }else{
+                                    GestionePareggioGame(partita,nuovo_giocatore,risposta);
+                                }
+                    }else{
+                            printf("Il campo 'risposta' non è presente o non è booleano.\n");
+                            send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
+                     }
+                      }else{
+                        printf("Il campo 'game_id' non è presente o non è un numero.\n");
+                        send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
+                      }
+                }
             }
         else {
                 printf("Path non riconosciuto per giocatore IN_HOME: %s\n", path->valuestring);

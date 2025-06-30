@@ -94,3 +94,4 @@ GIOCATORE* switchGiocatorePartita(GIOCATORE*giocatore,GAME*partita){
     else
        return partita->giocatoreParticipante[0];
 }
+

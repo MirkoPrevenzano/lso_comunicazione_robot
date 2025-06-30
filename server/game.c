@@ -620,10 +620,112 @@ void gestisci_esito_vittoria(GIOCATORE*giocatore,Esito esito,GAME*partita){
     }
     /*if(esito==SCONFITTA){}*/
     if(esito==PAREGGIO){
-        //attendere le risposte delle due persone
-        //per il momento li faccio uscire dal gioco e basta
+        partita->turno=0;//userò il turno come meccanismo di sincronizzazione del pareggio (forse è meglio usare un'altra variabile)
         giocatore->stato=IN_HOME;
     }
 
 }
 
+void resetGame(GAME*partita){
+            partita->numero_richieste = 0; // MODIFICA: Inizializza numero_richieste
+            
+            // MODIFICA: Inizializza tutto l'array richieste a NULL
+            for(int j = 0; j < MAX_GIOCATORI-1; j++) {
+                partita->richieste[j] = NULL;
+            }
+            
+            // MODIFICA: Inizializza la griglia TRIS a VUOTO 
+            for(int row = 0; row < 3; row++) {
+                for(int col = 0; col < 3; col++) {
+                    partita->griglia[row][col] = VUOTO; // Inizializza ogni cella a VUOTO (0)
+                }
+            }
+            
+            partita->turno=0;
+            partita->esito= NESSUN_ESITO;
+            partita->stato_partita = IN_ATTESA; 
+}
+
+
+void GestionePareggioGame(GAME*partita,GIOCATORE*giocatore,bool risposta){
+
+    if(partita){
+        struct timespec ts;
+        clock_gettime(CLOCK_REALTIME, &ts);
+        
+        // Impostiamo il timeout di 30 secondi
+        ts.tv_sec += 30;
+
+        pthread_mutex_lock(&gameListLock);//forse è meglio introdurre un nuovo mutex?
+        if(!risposta){
+            partita->turno--;
+        }else
+            partita->turno++;//userò il turno come meccanismo di sincronizzazione del pareggio (è meglio usare un'altra variabile)
+        
+        sem_post(&(partita->semaforo));
+        pthread_mutex_unlock(&gameListLock);
+        
+        while(partita->turno!=0 || partita->turno!=2 || partita->turno!=-2){
+            int ret = sem_timedwait(&(partita->semaforo), &ts);
+            if (ret == -1) {
+                printf("Timeout scaduto, non ho ricevuto il segnale in tempo\n");
+                inviaMessaggioRivincita(giocatore,0,-1);
+                if(partita)
+                    rimuovi_game_queue(partita);
+                    return;
+            }
+            break;
+        }
+
+        if(partita->turno==2){
+            giocatore->stato=IN_GIOCO;
+            partita->stato_partita=IN_CORSO;
+
+            sem_post(&(partita->semaforo));
+            sem_wait(&(partita->semaforo));
+            resetGame(partita);
+            sem_post(&(partita->semaforo));
+
+            inviaMessaggioRivincita(giocatore,1,partita->id);
+        }else if(partita->turno==-2){
+            inviaMessaggioRivincita(giocatore,0,-1);
+            if(partita)
+                rimuovi_game_queue(partita);
+        }else if(partita->turno==0){
+            inviaMessaggioRivincita(giocatore,0,-1);
+            if(partita)
+                rimuovi_game_queue(partita);
+        }
+
+    }
+}
+
+
+void inviaMessaggioRivincita(GIOCATORE *giocatore,int risposta,int game_id){
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "type", "/game_pareggio");
+    if(risposta){
+        cJSON_AddNumberToObject(root, "game_id", game_id);
+        cJSON_AddStringToObject(root, "messaggio", "rivincità accettata");
+    }else
+        cJSON_AddStringToObject(root, "messaggio", "rivincità rifiutata o timeout");
+
+    char *json_str = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root); 
+    printf("Invio al socket %d: %s\n", giocatore->socket, json_str);
+    fflush(stdout);
+    send(giocatore->socket,json_str,strlen(json_str),0);
+    free(json_str);
+
+    
+}
+
+//turno = 0;
+
+/*risposta 1  risposta 2
+    si          si    => turno 2 (1+1)
+    no          si    => turno 0 (1-1)
+    si          no    => turno 0 (1-1)
+    no          no    => turno-2 (-1-1)
+                no    => turno -1
+                si    => turno  1             */
