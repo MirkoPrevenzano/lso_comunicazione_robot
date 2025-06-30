@@ -31,11 +31,13 @@ void aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario){
             for(int j = 0; j < MAX_GIOCATORI-1; j++) {
                 Partite[i]->richieste[j] = NULL;
             }
-           /* for(int i=0;i<3; i++){
-               for(int j=0;j<3;j++){
-                    Partite[i]->griglia[i][j]=0; // MODIFICA: Inizializza la griglia a 0 // MODIFICA 2 : da SEGMENTATION FAULT per qualche strano motivo
+            
+            // MODIFICA: Inizializza la griglia TRIS a VUOTO 
+            for(int row = 0; row < 3; row++) {
+                for(int col = 0; col < 3; col++) {
+                    Partite[i]->griglia[row][col] = VUOTO; // Inizializza ogni cella a VUOTO (0)
                 }
-            }*/
+            }
             
             //a cosa serve? il semaforo serve per sincronizzare l'accesso alla partita perchè può essere accessibile da più thread
             //con sem_init si inizializza il semaforo uno ad uno i parametri sono: il semaforo, il valore iniziale (0 o 1), e il valore di condivisione (0 per processo, 1 per thread)
@@ -482,10 +484,10 @@ void  switchTurn(GAME*partita){
 
 bool aggiorna_griglia(GAME*partita,GIOCATORE*giocatore,int col,int row,int turno){
     // Rimuovo il mutex qui perché il semaforo della partita già protegge l'accesso
-    if(partita->griglia[col][row]!=0){
+    if(partita->griglia[row][col]!=VUOTO){
         return false;
     }else{
-        partita->griglia[col][row]=turno+1; //turno+1 perché il turno è 0 o 1, ma la griglia è 1 o 2
+        partita->griglia[row][col]=turno+1; //turno+1 perché il turno è 0 o 1, ma la griglia è 1 o 2
         printf("casella aggiornata con successo");
         return true;
     }
