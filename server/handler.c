@@ -80,11 +80,8 @@ void HandlerInviaMovesPartita(GIOCATORE*giocatore,GAME*partita){
 }
 
 void handler_game_response(GIOCATORE*giocatore,GAME*partita){
-    pthread_mutex_lock(&gameListLock);
     printf("Richiesta della griglia di gioco ricevuta\n");
-    //usa solo uno standard di nome per le funzioni camelCase, snake_case, ecc
     HandlerInviaMovesPartita(giocatore,partita);
-    pthread_mutex_unlock(&gameListLock);
 }
 
 GIOCATORE* switchGiocatorePartita(GIOCATORE*giocatore,GAME*partita){

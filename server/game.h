@@ -42,6 +42,7 @@ typedef struct game{
     int numero_richieste;
     int turno;//turno = 0 -> turno del giocatorePartecipante[0]
     sem_t semaforo;
+    int voti_pareggio;
 } GAME;
 
 

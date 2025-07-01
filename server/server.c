@@ -451,7 +451,9 @@ void checkRouter(char* buffer, GIOCATORE*nuovo_giocatore, int socket_nuovo, int 
                             }else{
                                 send_success_message(1,nuovo_giocatore->socket,"partita cancellata");
                                 printf("il giocatore vincitore (ID : %d) ha deciso di non diventare proprietario del gioco (ID : %d) ",nuovo_giocatore->id,id_partita);
+                                pthread_mutex_lock(&gameListLock);
                                 rimuovi_game_queue(partita);
+                                pthread_mutex_unlock(&gameListLock);
                             }
                         }else{
                             printf("Il campo 'risposta' non è presente o non è booleano.\n");
@@ -539,12 +541,14 @@ void checkRouter(char* buffer, GIOCATORE*nuovo_giocatore, int socket_nuovo, int 
                                     int row = id_item_3->valueint;
                                     pthread_mutex_lock(&gameListLock);
                                     GAME*partita=searchPartitaById(id_partita);
-                                    pthread_mutex_unlock(&gameListLock);
                                     bool success = aggiorna_partita(partita,nuovo_giocatore,col,row);
                                     if(success){
                                         handler_game_response(nuovo_giocatore,partita);
                                         handler_game_response(switchGiocatorePartita(nuovo_giocatore,partita),partita);
+
                                     }
+                                    pthread_mutex_unlock(&gameListLock);
+
                                 }else{
                                     printf("Il campo 'row' non è presente o non è un numero.\n");
                                     send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");

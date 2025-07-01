@@ -223,12 +223,12 @@ class GamePage(tk.Frame):
             
         elif esito == 2:
             path = "/pareggio_game"
-            risposta = send_to_server(path, {"game_id": self.id, "risposta": result})
+            risposta = send_to_server(path, {"game_id": self.controller.shared_data['game_id'], "risposta": result})
             risposta = json.loads(risposta)
             if risposta.get("success") == 1:
-                messagebox.showinfo("Partita", risposta.get("message"), "Rivincita accettata")
+                messagebox.showinfo("Rivincita accettata", risposta.get("message"))
             elif risposta.get("success") == 2:
-                messagebox.showinfo("Partita", risposta.get("message"), "Rivincita rifiutata")
+                messagebox.showinfo("Rivincita rifiutata", risposta.get("message"))
                 self.controller.show_frame("HomePage")
             else:
                 messagebox.showerror("Errore", risposta.get("message", "Errore sconosciuto"))

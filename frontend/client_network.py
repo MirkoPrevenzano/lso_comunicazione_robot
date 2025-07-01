@@ -47,7 +47,12 @@ class SelectBasedClient:
             
             print("📥 Attendo risposta...")
             # Usa select per attendere la risposta con timeout
-            ready, _, _ = select.select([self.socket], [], [], 5.0)  # timeout 5 secondi
+            if(path == "/pareggio_game"):
+                timeout = 30.5
+            else:
+                timeout = 5.0
+
+            ready, _, _ = select.select([self.socket], [], [], timeout)  # timeout 5 secondi
             
             if ready:
                 risposta = self.socket.recv(4096).decode()

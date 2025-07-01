@@ -47,7 +47,8 @@ void aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario){
             sem_init(&Partite[i]->semaforo, 0, 1); // MODIFICA: Inizializza semaforo
             Partite[i]->turno=0;
             Partite[i]->esito= NESSUN_ESITO;
-            Partite[i]->stato_partita = IN_ATTESA; 
+            Partite[i]->stato_partita = IN_ATTESA;
+            Partite[i]->voti_pareggio = 0; // MODIFICA: Inizializza voti_pareggio 
             trovato = true;
             
         }
@@ -60,7 +61,6 @@ void aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario){
 
 void rimuovi_game_queue(GAME*partita){
 
-    pthread_mutex_lock(&gameListLock);
     if(partita!=NULL){
         // MODIFICA: Decremento numero_partite prima della ricerca per consistenza
         numero_partite--;
@@ -74,7 +74,6 @@ void rimuovi_game_queue(GAME*partita){
         }
         free(partita);
     }
-    pthread_mutex_unlock(&gameListLock);
 }
 
 void remove_game_by_player_id(int id) {
@@ -646,75 +645,76 @@ void resetGame(GAME*partita){
             
             partita->turno=0;
             partita->esito= NESSUN_ESITO;
-            partita->stato_partita = IN_ATTESA; 
+            partita->stato_partita = IN_ATTESA;
+            partita->voti_pareggio = 0; // MODIFICA: Inizializza voti_pareggio 
 }
 
 
-void GestionePareggioGame(GAME*partita,GIOCATORE*giocatore,bool risposta){
-
-    if(partita){
-        struct timespec ts;
-        clock_gettime(CLOCK_REALTIME, &ts);
-        
-        // Impostiamo il timeout di 30 secondi
-        ts.tv_sec += 30;
-
-        pthread_mutex_lock(&gameListLock);//forse è meglio introdurre un nuovo mutex?
-        if(!risposta){
-            partita->turno--;
-        }else
-            partita->turno++;//userò il turno come meccanismo di sincronizzazione del pareggio (è meglio usare un'altra variabile)
-        
-        sem_post(&(partita->semaforo));
-        pthread_mutex_unlock(&gameListLock);
-        
-        while(partita->turno!=0 && partita->turno!=2 && partita->turno!=-2){
-            int ret = sem_timedwait(&(partita->semaforo), &ts);
-            if (ret == -1) {
-                printf("Timeout scaduto, non ho ricevuto il segnale in tempo\n");
-                inviaMessaggioRivincita(giocatore,0,NULL);
-                if(partita)
-                    rimuovi_game_queue(partita);
-                return;
-            }
+void GestionePareggioGame(GAME* partita, GIOCATORE* giocatore, bool risposta) {
+    if (!partita) return;
     
-        }
+    pthread_mutex_lock(&gameListLock);
+    
+    // Registra il voto del giocatore
+    if (risposta) {
+        partita->voti_pareggio++;
+        pthread_mutex_unlock(&gameListLock);
 
-        if(partita && partita->turno==2){
-            giocatore->stato=IN_GIOCO;
-            partita->stato_partita=IN_CORSO;
-
-            sem_post(&(partita->semaforo));
-            sem_wait(&(partita->semaforo));
-            resetGame(partita);
-            sem_post(&(partita->semaforo));
-
-            inviaMessaggioRivincita(giocatore,1,partita);
-            return;
-        }else if(partita && partita->turno==-2){
-                rimuovi_game_queue(partita);
-        }else if(partita && partita->turno==0){
-                rimuovi_game_queue(partita);
-        }
-
-        inviaMessaggioRivincita(giocatore,0,NULL);
-
+        printf("Giocatore %s ha accettato la rivincita. Voti: %d/2\n", giocatore->nome, partita->voti_pareggio);
+    } else {
+        printf("Giocatore %s ha rifiutato la rivincita\n", giocatore->nome);
+        // Se qualcuno rifiuta, termina immediatamente
+        partita->voti_pareggio = -1; // Segna come rifiutato
+        
+        // Invia messaggio a entrambi i giocatori
+        inviaMessaggioRivincita(partita->giocatoreParticipante[0], 0, NULL);
+        inviaMessaggioRivincita(partita->giocatoreParticipante[1], 0, NULL);
+        
+        // Rimuovi la partita
+        rimuovi_game_queue(partita);
+        pthread_mutex_unlock(&gameListLock);
+        return;
     }
+    
+    // Controlla se entrambi hanno votato
+    if (partita->voti_pareggio == 2) {
+        // Entrambi accettano - inizia nuova partita
+        printf("Entrambi i giocatori hanno accettato la rivincita\n");
+        
+        partita->giocatoreParticipante[0]->stato = IN_GIOCO;
+        partita->giocatoreParticipante[1]->stato = IN_GIOCO;
+        partita->stato_partita = IN_CORSO;
+        resetGame(partita);
+        // Invia conferma a entrambi i giocatori
+        inviaMessaggioRivincita(partita->giocatoreParticipante[0], 1, partita);
+        inviaMessaggioRivincita(partita->giocatoreParticipante[1], 1, partita);
+        pthread_mutex_unlock(&gameListLock);
+
+        
+        
+    }
+    
 }
 
 
 
 void inviaMessaggioRivincita(GIOCATORE *giocatore,int risposta,GAME*partita){
+    if (!giocatore || giocatore->socket <= 0) {
+        printf("Giocatore non valido per invio messaggio rivincita\n");
+        return;
+    }
     
-    if(risposta){
+    if(risposta == 1){
+        // Rivincita accettata
         if(partita){
-        send_success_message(1,giocatore->socket,"rivincità accettata");
-        handler_game_response(giocatore,partita);
+            send_success_message(1,giocatore->socket,"Rivincita accettata! Inizia nuova partita");
+            sleep(0.1);
+            handler_game_response(giocatore,partita);
         }
-    }else{
-        send_success_message(2,giocatore->socket,"rivincità rifiutata o timeout");
+    } else {
+        // Rivincita rifiutata o timeout
+        send_success_message(2,giocatore->socket,"Rivincita rifiutata o timeout");
     } 
-    
 }
 
 //turno = 0;

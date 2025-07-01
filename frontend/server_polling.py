@@ -21,8 +21,6 @@ class ServerPollingManager:
             "/game_start": self._handle_request_accepted,  # Partita iniziata
             "/game_response": self._handle_game_update,  # Aggiornamento partita
             "/game_exit": self._handle_game_end,  # Partita terminata
-            "/game_pareggio": self._handle_game_pareggio,  # Partita pareggiata
-            "/game_vittoria": self._handle_game_vittoria,  # Partita vinta
         }
     
     def start_listener(self):
@@ -214,35 +212,4 @@ class ServerPollingManager:
         # Potrebbe tornare alla HomePage, mostrare risultati, etc.
     
 
-    def  _handle_game_pareggio(self, data):
-        """Gestisce partita pareggiata"""
-        print(f"🤝 Partita pareggiata: {data}")
-        
-        # Aggiorna i dati condivisi
-        self.controller.shared_data['game_id'] = data.get('game_id')
-        self.controller.shared_data['player_id_partecipante'] = data.get('player_id')
-        self.controller.shared_data['game_data'] = data.get('game_data', {})
-        
-        # Mostra messaggio di pareggio
-        game_page = self._get_game_page()
-        if game_page and hasattr(game_page, 'richiedi_rifare_partita'):
-            game_page.richiedi_rifare_partita(data.get('messaggio', "Partita pareggiata!"))
-        else:
-            print("⚠️ GamePage non trovata o non ha metodo richiedi_rifare_partita")
-    
-    def _handle_game_vittoria(self, data):
-        """Gestisce partita vinta"""
-        print(f"🏆 Partita vinta: {data}")
-        
-        # Aggiorna i dati condivisi
-        self.controller.shared_data['game_id'] = data.get('game_id')
-        self.controller.shared_data['player_id_partecipante'] = data.get('player_id')
-        self.controller.shared_data['game_data'] = data.get('game_data', {})
-        
-        # Mostra messaggio di vittoria
-        game_page = self._get_game_page()
-        if game_page and hasattr(game_page, 'richiedi_rifare_partita'):
-            game_page.richiedi_rifare_partita(data.get('messaggio', "Hai vinto!"))
-        else:
-            print("⚠️ GamePage non trovata o non ha metodo richiedi_rifare_partita")
     
