@@ -208,6 +208,7 @@ class GamePage(tk.Frame):
     def _gestisci_messaggio(self, messaggio, esito):
         """Richiede se vuole rifare una nuova partita."""
         result =messagebox.askyesno("Nuova Partita:", messaggio)
+        print(f"🔧 DEBUG: Risposta alla richiesta di nuova partita: {result}")
         self.reset_game()
         if(esito == 1):
             path = "/vittoria_game"
@@ -227,14 +228,22 @@ class GamePage(tk.Frame):
             risposta = json.loads(risposta)
             if risposta.get("success") == 1:
                 messagebox.showinfo("Rivincita accettata", risposta.get("message"))
-            elif risposta.get("success") == 2:
-                messagebox.showinfo("Rivincita rifiutata", risposta.get("message"))
-                self.controller.show_frame("HomePage")
             else:
                 messagebox.showerror("Errore", risposta.get("message", "Errore sconosciuto"))
                 self.controller.show_frame("HomePage")
             
 
+    def gestione_risposta_pareggio(self, data):
+        """Gestisce la risposta del server per la rivincita dopo un pareggio"""
+        if data.get("success") == 1:
+            messagebox.showinfo("Rivincita accettata", data.get("message"))
+            self.controller.shared_data['game_id'] = data.get("game_id", "")
+            self.id = data.get("game_id", "")
+            self.nomePartecipante = data.get("nome_partecipante", "")
+        else:
+            messagebox.showerror("Rivincita rifiutata", data.get("message", "Errore sconosciuto"))
+            self.reset_game()
+            self.controller.show_frame("HomePage")
 
     def reset_game(self):
         """Resetta lo stato del gioco."""

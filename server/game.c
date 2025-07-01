@@ -336,93 +336,7 @@ void gestioneRichiestaJSONuscita(cJSON*json,int*leave_flag,int*leave_game,GIOCAT
     }
 } 
 
-cJSON* read_with_timeout(int sockfd, char* buffer, size_t len, int timeout_sec,int*leave_game) {
-    // Funzione per leggere dati da un socket con timeout
-    //fd_set: insieme di descrittori di file
-    //timeout: struttura che specifica il timeout per la lettura
-    fd_set readfds;
-    struct timeval timeout;
 
-    // FD_ZERO inizializza l'insieme di descrittori di file a zero
-    FD_ZERO(&readfds);
-
-    // Aggiungi il socket al set di descrittori di file
-    FD_SET(sockfd, &readfds);
-
-    // Imposta il timeout
-    timeout.tv_sec = timeout_sec;
-    // Imposta i microsecondi a zero per un timeout preciso
-    timeout.tv_usec = 0;
-
-    // Attendi che il socket sia pronto per la lettura o che il timeout scada
-    int ret = select(sockfd + 1, &readfds, NULL, NULL, &timeout);
-
-    //se return è negativo, si è verificato un errore
-    //se return è zero, il timeout è scaduto
-    //se return è maggiore di zero, il socket è pronto per la lettura
-    if (ret < 0) {
-        perror("ERRORE");
-        *leave_game = 1;
-    } else if (ret == 0) {
-        printf("Timeout: nessun dato ricevuto entro %d secondi\n", timeout_sec);
-    }
-    else{
-        // MODIFICA: Corretto bug sizeof(buffer) -> len-1 per evitare buffer overflow
-        memset(buffer, 0, len);
-        int size = read(sockfd, buffer, len-1);
-        if(size > 0){
-            buffer[size] = '\0';
-            printf("Buffer ricevuto: %s\n", buffer);
-            fflush(stdout);
-            // MODIFICA: Cerca la fine del JSON e tronca la stringa se necessario
-            
-            cJSON *json = cJSON_Parse(buffer);
-            if (json == NULL) {
-                printf("Errore nel parser JSON\n");
-                *leave_game = 1;
-            } else 
-                return json;        
-        }
-        // MODIFICA: Aggiunta gestione caso size <= 0
-        else {
-            printf("Errore lettura socket o connessione chiusa\n");
-            *leave_game = 1;
-        }
-    }
-
-    // Socket pronto per la lettura
-    
-    return NULL;
-}
-
-void sendJoinGame(GIOCATORE*giocatore2, GAME* partita){
-    cJSON *root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "type", "start_game");
-    cJSON_AddNumberToObject(root, "game_id", partita->id);
-    cJSON_AddNumberToObject(root, "simbolo", 1); // Corretto: simbolo come numero
-    cJSON_AddStringToObject(root, "nickname_partecipante", giocatore2->nome);
-    //game_data:{TRIS: [[0,0,0],[0,0,0],[0,0,0]], esito:0, turono:0}
-    cJSON *game_data = cJSON_CreateObject();
-    cJSON *tris = cJSON_CreateArray();
-    for (int i = 0; i < 3; i++) {
-        cJSON *row = cJSON_CreateArray();
-        for (int j = 0; j < 3; j++) {
-            cJSON_AddItemToArray(row, cJSON_CreateNumber(0)); // Inizializza la matrice con zeri
-        }
-        cJSON_AddItemToArray(tris, row);
-    }
-    cJSON_AddItemToObject(game_data, "TRIS", tris);
-    cJSON_AddNumberToObject(game_data, "esito", 0);
-    cJSON_AddNumberToObject(game_data, "turno", 0);
-    cJSON_AddItemToObject(root, "game_data", game_data);
-
-    char *msg = cJSON_PrintUnformatted(root);
-    send(partita->giocatoreParticipante[0]->socket, msg, strlen(msg), 0);
-    cJSON_Delete(root);
-    free(msg);
-    printf("Inviato messaggio di unione partita al giocatore 1");
-    fflush(stdout);
-}
 
 
 void sendSuccessNewGame(int success, GIOCATORE*giocatore, int id_partita){
@@ -664,15 +578,25 @@ void GestionePareggioGame(GAME* partita, GIOCATORE* giocatore, bool risposta) {
     } else {
         printf("Giocatore %s ha rifiutato la rivincita\n", giocatore->nome);
         // Se qualcuno rifiuta, termina immediatamente
+        
         partita->voti_pareggio = -1; // Segna come rifiutato
         
-        // Invia messaggio a entrambi i giocatori
-        inviaMessaggioRivincita(partita->giocatoreParticipante[0], 0, NULL);
-        inviaMessaggioRivincita(partita->giocatoreParticipante[1], 0, NULL);
+        // CORREZIONE SEGFAULT: Salva i puntatori dei giocatori prima di deallocare
+        GIOCATORE* giocatore0 = partita->giocatoreParticipante[0];
+        GIOCATORE* giocatore1 = partita->giocatoreParticipante[1];
         
-        // Rimuovi la partita
+        // Imposta lo stato dei giocatori prima di deallocare la partita
+        if (giocatore0) giocatore0->stato = IN_HOME;
+        if (giocatore1) giocatore1->stato = IN_HOME;
+        
+        // Rimuovi la partita prima di sbloccare il mutex
         rimuovi_game_queue(partita);
         pthread_mutex_unlock(&gameListLock);
+        
+        // Invia messaggio a entrambi i giocatori DOPO aver deallocato la partita
+        inviaMessaggioRivincita(giocatore0, 0, NULL);
+        inviaMessaggioRivincita(giocatore1, 0, NULL);
+        
         return;
     }
     
@@ -688,10 +612,7 @@ void GestionePareggioGame(GAME* partita, GIOCATORE* giocatore, bool risposta) {
         // Invia conferma a entrambi i giocatori
         inviaMessaggioRivincita(partita->giocatoreParticipante[0], 1, partita);
         inviaMessaggioRivincita(partita->giocatoreParticipante[1], 1, partita);
-        pthread_mutex_unlock(&gameListLock);
-
-        
-        
+        pthread_mutex_unlock(&gameListLock); 
     }
     
 }
@@ -699,6 +620,7 @@ void GestionePareggioGame(GAME* partita, GIOCATORE* giocatore, bool risposta) {
 
 
 void inviaMessaggioRivincita(GIOCATORE *giocatore,int risposta,GAME*partita){
+    
     if (!giocatore || giocatore->socket <= 0) {
         printf("Giocatore non valido per invio messaggio rivincita\n");
         return;
@@ -706,14 +628,38 @@ void inviaMessaggioRivincita(GIOCATORE *giocatore,int risposta,GAME*partita){
     
     if(risposta == 1){
         // Rivincita accettata
+        // {path: "/game_pareggio", success: 1, game_id:1, message:..., nome_partecipante:...}
         if(partita){
-            send_success_message(1,giocatore->socket,"Rivincita accettata! Inizia nuova partita");
+            cJSON *root = cJSON_CreateObject();
+            cJSON_AddStringToObject(root, "path", "/game_pareggio");
+            cJSON_AddNumberToObject(root, "success", 1);
+            cJSON_AddNumberToObject(root, "game_id", partita->id);
+            if(giocatore->id == partita->giocatoreParticipante[0]->id) {
+                cJSON_AddStringToObject(root, "nome_partecipante", partita->giocatoreParticipante[1]->nome);
+            } else {
+                cJSON_AddStringToObject(root, "nome_partecipante", partita->giocatoreParticipante[0]->nome);
+            }
+            
+            cJSON_AddStringToObject(root, "message", "Rivincita accettata, inizio nuova partita");
+            char *msg = cJSON_PrintUnformatted(root);
             sleep(0.1);
+            send(giocatore->socket, msg, strlen(msg), 0);
+            cJSON_Delete(root);
+            free(msg);
+            sleep(0.1);
+            resetGame(partita); // Reset della partita per la nuova sessione
             handler_game_response(giocatore,partita);
         }
     } else {
-        // Rivincita rifiutata o timeout
-        send_success_message(2,giocatore->socket,"Rivincita rifiutata o timeout");
+        cJSON *root = cJSON_CreateObject();
+        cJSON_AddStringToObject(root, "path", "/game_pareggio");
+        cJSON_AddNumberToObject(root, "success", 0);
+        cJSON_AddNumberToObject(root, "game_id", -1);
+        cJSON_AddStringToObject(root, "message", "Rivincita rifiutata, torna in home");
+        char *msg = cJSON_PrintUnformatted(root);
+        send(giocatore->socket, msg, strlen(msg), 0);
+        cJSON_Delete(root);
+        free(msg);
     } 
 }
 

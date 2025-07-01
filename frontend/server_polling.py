@@ -21,6 +21,7 @@ class ServerPollingManager:
             "/game_start": self._handle_request_accepted,  # Partita iniziata
             "/game_response": self._handle_game_update,  # Aggiornamento partita
             "/game_exit": self._handle_game_end,  # Partita terminata
+            "/game_pareggio": self._handle_game_pareggio,  # Gestione pareggio
         }
     
     def start_listener(self):
@@ -205,11 +206,38 @@ class ServerPollingManager:
         else:
             print("⚠️ GamePage non trovata o non ha metodo aggiorna_dati")
                 
+    def _handle_game_pareggio(self, data):
+        """Gestisce messaggio di pareggio dal server"""
+        print(f"⚖️ Pareggio ricevuto: {data}")
+        
+        # Ottieni la GamePage
+        game_page = self._get_game_page()
+        if game_page and hasattr(game_page, 'gestione_risposta_pareggio'):
+            try:
+                game_page.gestione_risposta_pareggio(data)
+                print("✅ GamePage notificata del pareggio")
+            except Exception as e:
+                print(f"❌ Errore gestione pareggio in GamePage: {type(e).__name__}: {e}")
+                import traceback
+                traceback.print_exc()
+        else:
+            print("⚠️ GamePage non trovata o non ha metodo gestione_risposta_pareggio")
+    
     def _handle_game_end(self, data):
-        """Gestisce fine partita"""
+        """Gestisce fine partita - implementazione completa"""
         print(f"🏁 Fine partita ricevuta: {data}")
-        # TODO: Implementare gestione fine partita
-        # Potrebbe tornare alla HomePage, mostrare risultati, etc.
-    
+        
+        # Se è un messaggio game_exit, torna alla HomePage
+        if data.get('path') == 'game_exit':
+            print("🚪 Uscita forzata dalla partita - torno alla HomePage")
+            home_page = self._get_home_page()
+            if home_page and hasattr(home_page, 'start_periodic_update_content'):
+                home_page.start_periodic_update_content()
+            self.controller.show_frame("HomePage")
+        else:
+            # Altri tipi di fine partita
+            print("🏁 Fine partita normale")
+            # Potrebbe mostrare risultati, etc.
 
-    
+
+

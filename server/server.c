@@ -472,35 +472,37 @@ void checkRouter(char* buffer, GIOCATORE*nuovo_giocatore, int socket_nuovo, int 
                     printf("Errore nel parsing del JSON body\n");
                     send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
                 } else {
-                     cJSON *id_item = cJSON_GetObjectItem(body_json, "game_id");
-                     cJSON *id_item_2 = cJSON_GetObjectItem(body_json, "risposta");
-                      if (id_item && cJSON_IsNumber(id_item)) {
+                    cJSON *id_item = cJSON_GetObjectItem(body_json, "game_id");
+                    cJSON *id_item_2 = cJSON_GetObjectItem(body_json, "risposta");
+                    if (id_item && cJSON_IsNumber(id_item)) {
                         int id_partita = id_item->valueint;
-                            if(id_item_2 && cJSON_IsBool(id_item_2)) {
-                                bool risposta = id_item_2->valueint;
-                                pthread_mutex_lock(&gameListLock);
-                                GAME* partita = searchPartitaById(id_partita);
-                                pthread_mutex_unlock(&gameListLock);
-                                if(risposta){
-                                    GestionePareggioGame(partita,nuovo_giocatore,risposta);
-                                }else{
-                                    GestionePareggioGame(partita,nuovo_giocatore,risposta);
-                                }
-                    }else{
+                        if(id_item_2 && cJSON_IsBool(id_item_2)) {
+                            bool risposta = id_item_2->valueint;
+                            pthread_mutex_lock(&gameListLock);
+                            GAME* partita = searchPartitaById(id_partita);
+                            pthread_mutex_unlock(&gameListLock);
+                            if(partita){
+                                send_success_message(1, nuovo_giocatore->socket, "Richiesta di rivincita ricevuta");
+                                GestionePareggioGame(partita,nuovo_giocatore,risposta);
+                            } else {
+                                send_success_message(0, nuovo_giocatore->socket, "Partita eliminata");
+                            }
+                            
+                        }else{
                             printf("Il campo 'risposta' non è presente o non è booleano.\n");
                             send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
-                     }
-                      }else{
+                        }
+                    }else{
                         printf("Il campo 'game_id' non è presente o non è un numero.\n");
                         send_success_message(0, nuovo_giocatore->socket, "Parametri non validi");
-                      }
+                    }
                 }
             }
-        else {
+            else {
                 printf("Path non riconosciuto per giocatore IN_HOME: %s\n", path->valuestring);
                 send_success_message(0, nuovo_giocatore->socket, "Comando non disponibile");
             }
-         } else if (nuovo_giocatore->stato == IN_GIOCO) {
+        } else if (nuovo_giocatore->stato == IN_GIOCO) {
             //inviare la griglia
             if(strcmp(path->valuestring, "/waiting_game_response") == 0){
                 cJSON *body_json = cJSON_Parse(body->valuestring);
