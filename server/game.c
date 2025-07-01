@@ -536,7 +536,7 @@ void gestisci_esito_vittoria(GIOCATORE*giocatore,Esito esito,GAME*partita){
     }
     /*if(esito==SCONFITTA){}*/
     if(esito==PAREGGIO){
-        partita->turno=0;//userò il turno come meccanismo di sincronizzazione del pareggio (forse è meglio usare un'altra variabile)
+        partita->voti_pareggio=0;
         giocatore->stato=IN_HOME;
     }
 
