@@ -483,6 +483,7 @@ void checkRouter(char* buffer, GIOCATORE*nuovo_giocatore, int socket_nuovo, int 
                             pthread_mutex_unlock(&gameListLock);
                             if(partita){
                                 send_success_message(1, nuovo_giocatore->socket, "Richiesta di rivincita ricevuta");
+                                sleep(1);
                                 GestionePareggioGame(partita,nuovo_giocatore,risposta);
                             } else {
                                 send_success_message(0, nuovo_giocatore->socket, "Partita eliminata");
