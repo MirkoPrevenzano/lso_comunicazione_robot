@@ -7,10 +7,11 @@
 #include "request.h"
 
 #include <sys/select.h>
+#include <sys/time.h>
+#include <time.h>
 #include <errno.h>
 #include <semaphore.h>
 #include <cjson/cJSON.h> //installata libreria esterna
-#include <linux/time.h>
 #define MAX_GIOCATORI 8
 
 typedef enum {

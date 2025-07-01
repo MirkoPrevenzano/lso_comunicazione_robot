@@ -1,6 +1,9 @@
 #include "game.h"
 #include "server.h"
 
+// Dichiarazione extern per funzioni handler
+extern void handler_game_response(GIOCATORE* giocatore, GAME* partita);
+
 void aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario){
 
     // MODIFICA: Controllo parametri null prima di procedere
@@ -700,6 +703,7 @@ void GestionePareggioGame(GAME*partita,GIOCATORE*giocatore,bool risposta){
 }
 
 
+
 void inviaMessaggioRivincita(GIOCATORE *giocatore,int risposta,GAME*partita){
     
     if(risposta){
@@ -722,47 +726,3 @@ void inviaMessaggioRivincita(GIOCATORE *giocatore,int risposta,GAME*partita){
     no          no    => turno-2 (-1-1)
                 no    => turno -1
                 si    => turno  1             */
-
-
-
-/*void GestionePareggioGame(GAME*partita,GIOCATORE*giocatore,bool risposta){
-    struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
-        
-    // Impostiamo il timeout di 30 secondi
-    ts.tv_sec += 30;
-
-    pthread_mutex_lock(&gameListLock);
-    if(risposta){
-        if(partita->cond_pareggio==false){
-            partita->cond_pareggio=true
-            pthread_mutex_unlock(&gameListLock);
-            int ret = sem_timedwait(&(partita->semaforo), &ts);
-            if (ret == -1) {
-                printf("Timeout scaduto, non ho ricevuto il segnale in tempo\n");
-                inviaMessaggioRivincita(giocatore,0,NULL);
-                if(partita)
-                    rimuovi_game_queue(partita);
-                    return;
-            }
-
-        }
-        if(partita->cond_pareggio==true){
-            sem_post(&(partita->semaforo));
-            pthread_mutex_unlock(&gameListLock);
-            giocatore->stato=IN_GIOCO;
-            partita->stato_partita=IN_CORSO;
-            resetGame(partita);
-            inviaMessaggioRivincita(giocatore,1,partita);
-        }
-    
-    }else{
-        if(partita->cond_pareggio==false)
-        TO-DO
-    
-    
-    }
-
-
-
-}*/

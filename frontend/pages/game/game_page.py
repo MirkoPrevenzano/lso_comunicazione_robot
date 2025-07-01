@@ -211,7 +211,9 @@ class GamePage(tk.Frame):
         self.reset_game()
         if(esito == 1):
             path = "/vittoria_game"
-            risposta =send_to_server(path, {"game_id": self.id, "risposta": result})
+            
+            risposta =send_to_server(path, {"game_id": self.controller.shared_data['game_id'], "risposta": result})
+            risposta = json.loads(risposta)
             if(risposta.get("success") == 1):
                 messagebox.showinfo("Partita", risposta.get("message"))
             else:
@@ -222,6 +224,7 @@ class GamePage(tk.Frame):
         elif esito == 2:
             path = "/pareggio_game"
             risposta = send_to_server(path, {"game_id": self.id, "risposta": result})
+            risposta = json.loads(risposta)
             if risposta.get("success") == 1:
                 messagebox.showinfo("Partita", risposta.get("message"), "Rivincita accettata")
             elif risposta.get("success") == 2:
