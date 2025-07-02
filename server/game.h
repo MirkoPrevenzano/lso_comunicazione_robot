@@ -74,6 +74,7 @@ bool controlla_pareggio(GAME*partita);
 bool controlla_vittoria(GAME*partita,int giocatore);
 
 void InviaVittoriaAltroGiocatore(GIOCATORE*giocatore);
+void InviaPareggioDisconnessione(GIOCATORE*giocatore);
 GAME*SearchPartitaInCorsoByGiocatore(GIOCATORE*giocatore);
 void gestisci_esito_vittoria(GIOCATORE*giocatore,Esito esito,GAME*partita);
 

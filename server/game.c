@@ -607,8 +607,8 @@ void GestionePareggioGame(GAME* partita, GIOCATORE* giocatore, bool risposta) {
         
         partita->giocatoreParticipante[0]->stato = IN_GIOCO;
         partita->giocatoreParticipante[1]->stato = IN_GIOCO;
-        partita->stato_partita = IN_CORSO;
         resetGame(partita);
+        partita->stato_partita = IN_CORSO;
         // Invia conferma a entrambi i giocatori
         inviaMessaggioRivincita(partita->giocatoreParticipante[0], 1, partita);
         inviaMessaggioRivincita(partita->giocatoreParticipante[1], 1, partita);
@@ -663,12 +663,9 @@ void inviaMessaggioRivincita(GIOCATORE *giocatore,int risposta,GAME*partita){
     } 
 }
 
-//turno = 0;
-
-/*risposta 1  risposta 2
-    si          si    => turno 2 (1+1)
-    no          si    => turno 0 (1-1)
-    si          no    => turno 0 (1-1)
-    no          no    => turno-2 (-1-1)
-                no    => turno -1
-                si    => turno  1             */
+void InviaPareggioDisconnessione(GIOCATORE*giocatore){
+    GAME*partita = SearchPartitaInCorsoByGiocatore(giocatore);
+    if(partita){
+        GestionePareggioGame(partita,giocatore,0);
+    }
+}

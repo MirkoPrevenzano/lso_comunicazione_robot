@@ -33,7 +33,16 @@ void handler_game_response(GIOCATORE*giocatore,GAME*partita);
 
 GIOCATORE* switchGiocatorePartita(GIOCATORE*giocatore,GAME*partita);
 
-
+void ServerExitGame(char* buffer, GIOCATORE*nuovo_giocatore,cJSON *body);
+void ServerGameMove(char* buffer, GIOCATORE*nuovo_giocatore,cJSON *body);
+void ServerDrawGame(char* buffer, GIOCATORE*nuovo_giocatore,cJSON *body);
+void ServerVictoryGame(char* buffer, GIOCATORE*nuovo_giocatore,cJSON *body);
+void ServerDeclineRequest(char* buffer, GIOCATORE*nuovo_giocatore,cJSON *body);
+void ServerAcceptRequest(char* buffer, GIOCATORE*nuovo_giocatore,cJSON *body);
+void ServerRemoveRequest(char* buffer, GIOCATORE*nuovo_giocatore,cJSON *body);
+void ServerAddRequest(char* buffer, GIOCATORE*nuovo_giocatore,int*leave_flag,cJSON *body);
+void ServerNewGames(char* buffer, GIOCATORE*nuovo_giocatore,int *leave_flag);
+void ServerWaitingGames(char* buffer, GIOCATORE*nuovo_giocatore, int socket_nuovo);
 
 
 #endif
