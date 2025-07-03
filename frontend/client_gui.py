@@ -13,7 +13,7 @@ class MainApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Client GUI")
-        self.geometry("530x500") 
+        self.geometry("500x500") 
         self.resizable(False , False)
 
         #Dizionario per salvare info globali

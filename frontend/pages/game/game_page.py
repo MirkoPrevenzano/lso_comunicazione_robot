@@ -58,12 +58,13 @@ class GamePage(tk.Frame):
 
         # Griglia di gioco
         grid_frame = ttk.Frame(self, style="TFrame")
-        grid_frame.grid(row=3, column=0, pady=20)
-
+        grid_frame.grid(row=3, column=0, pady=20, sticky="")
+        
         self.buttons = [[None for _ in range(3)] for _ in range(3)]
         for i in range(3):
-            grid_frame.rowconfigure(i, weight=1)
+            grid_frame.rowconfigure(i, weight=1, uniform="row")
             for j in range(3):
+                grid_frame.columnconfigure(j, weight=1, uniform="col")
                 grid_frame.columnconfigure(j, weight=1)
                 btn = ttk.Button(
                     grid_frame,

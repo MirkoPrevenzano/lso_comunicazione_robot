@@ -57,7 +57,7 @@ class HomePage(tk.Frame):
 
         # Separatore
         separator = ttk.Separator(self, orient="horizontal")
-        separator.grid(row=1, column=0, sticky="ew", padx=(30,0), pady=(0, 10))
+        separator.grid(row=1, column=0, sticky="ew", padx=(30,30), pady=(0, 10))
 
         # Sezione nuova partita
         section1 = ttk.Frame(self, style="TFrame")
@@ -79,7 +79,7 @@ class HomePage(tk.Frame):
 
         # Separatore
         separator = ttk.Separator(self, orient="horizontal")
-        separator.grid(row=3, column=0, sticky="ew", padx=(30,0), pady=(0, 5))
+        separator.grid(row=3, column=0, sticky="ew", padx=(30,30), pady=(0, 5))
 
         # Pulsanti di navigazione
         nav_frame = ttk.Frame(self, style="TFrame")
