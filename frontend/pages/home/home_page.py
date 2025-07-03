@@ -107,12 +107,9 @@ class HomePage(tk.Frame):
         self.scroll_frame = ttk.Frame(self.content_frame, style="TFrame")
         self.scroll_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=5)
         
-        # TEMPORANEO: Usa un Frame semplice invece del Canvas per debug
-        print("🔧 DEBUG: Creazione layout semplificato senza Canvas...")
         self.content_container = ttk.Frame(self.scroll_frame, style="TFrame")
         self.content_container.pack(fill="both", expand=True)
         
-        # Commentiamo il Canvas per ora
         self.canvas = tk.Canvas(self.scroll_frame, highlightthickness=0, bg="black", bd=0, height=250)
         self.scrollbar = ttk.Scrollbar(self.scroll_frame, orient="vertical", command=self.canvas.yview)
         self.content_container = ttk.Frame(self.canvas, style="TFrame")

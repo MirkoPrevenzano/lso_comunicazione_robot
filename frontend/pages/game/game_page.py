@@ -201,7 +201,7 @@ class GamePage(tk.Frame):
             self.nomePartecipante = ""
             self.turno = None
             self.TRIS = [[0 for _ in range(3)] for _ in range(3)]
-            send_to_server("/exit_game", {"game_id": self.id})
+            send_to_server("/exit_game", {"game_id": self.controller.shared_data['game_id']})
             self.id = None
             self.controller.show_frame("HomePage")
     

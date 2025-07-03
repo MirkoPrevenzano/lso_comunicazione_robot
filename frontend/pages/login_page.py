@@ -50,7 +50,7 @@ class LoginPage(tk.Frame):
 
         if username:
             response = send_to_server("/register", {"nickname": username})
-            #{id:1}
+           
 
             try:
                 # Il server restituisce una stringa JSON, dobbiamo parsarla
