@@ -26,6 +26,9 @@ class HomePage(tk.Frame):
         self.configure(bg="black")
         self.current_view = "waiting_games"
         
+        # Cache per evitare aggiornamenti non necessari
+        self._last_games_data = None
+        
         # Inizializza i manager
         self.actions = HomeActions(self)
         self.widgets = HomeWidgets(self)
@@ -156,6 +159,10 @@ class HomePage(tk.Frame):
 
     def change_view(self, view_type):
         """Cambia la vista corrente"""
+        # Reset cache quando si cambia vista per forzare aggiornamento
+        if view_type != self.current_view and view_type == "waiting_games":
+            self._last_games_data = None
+            
         self.current_view = view_type
         self.update_button_styles()
         
@@ -228,8 +235,19 @@ class HomePage(tk.Frame):
         except Exception as e:
             print(f"❌ Errore generico in clear_content: {e}")
 
+    def _games_data_changed(self, new_games):
+        """Verifica se i dati delle partite sono cambiati rispetto alla cache"""
+        if self._last_games_data is None:
+            return True
+        
+        # Confronta le liste convertendo in stringhe per un confronto semplice
+        old_data = str(sorted(self._last_games_data, key=lambda x: x.get('id_partita', 0)))
+        new_data = str(sorted(new_games, key=lambda x: x.get('id_partita', 0)))
+        
+        return old_data != new_data
+
     def update_waiting_games(self):
-        """Aggiorna la lista delle partite in attesa"""
+        """Aggiorna la lista delle partite in attesa solo se i dati sono cambiati"""
         try:
             print("🔄 Richiesta partite in attesa...")
             response = send_to_server("/waiting_games", {})
@@ -255,7 +273,17 @@ class HomePage(tk.Frame):
                     data = json.loads(response)
                 
                 games = data.get("partite", [])
-                print(f"🔄 Partite parsate: {games}")                    
+                print(f"🔄 Partite parsate: {games}")
+                
+                # ✅ CONTROLLO CACHE: Aggiorna UI solo se i dati sono cambiati
+                if not self._games_data_changed(games):
+                    print("📋 Nessun cambiamento nei dati delle partite - skip aggiornamento UI")
+                    return
+                
+                # Aggiorna la cache
+                self._last_games_data = games.copy() if games else []
+                print("🔄 Dati delle partite cambiati - aggiornamento UI necessario")
+                                   
             except json.JSONDecodeError as e:
                 print(f"❌ Errore parsing JSON: {e}")
                 games = []
@@ -270,7 +298,7 @@ class HomePage(tk.Frame):
             messagebox.showerror("Errore", f"Si è verificato un errore: {str(e)}")
      
 
-        # Aggiorna UI in modo sicuro
+        # Aggiorna UI solo se necessario
         try:
             self.clear_content()
             
