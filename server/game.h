@@ -32,7 +32,7 @@ typedef enum{
     O 
 }TRIS;
 
-typedef struct game{
+typedef struct gioco{
     int id;
     GIOCATORE* giocatoreParticipante[2]; //giocatori[0] è il proprietario
     TRIS griglia[3][3];
@@ -43,44 +43,42 @@ typedef struct game{
     int turno;//turno = 0 -> turno del giocatorePartecipante[0]
     sem_t semaforo;
     int voti_pareggio;
-} GAME;
+}GIOCO;
 
 
 
-void new_game(int*leave_flag,char*buffer,GIOCATORE*giocatore);
-void send_success_message(int success, int socket, const char* message);
-void send_declined_request_message(int , GIOCATORE* );
-void rimuovi_game_queue(GAME*partita);
+void nuovaPartita(int*leave_flag,char*buffer,GIOCATORE*giocatore);
+void inviaMessaggioSuccesso(int success, int socket, const char* message);
+void inviaMessaggioRichiestaRifiutata(int , GIOCATORE* );
+void rimuoviGiocoQueue(GIOCO*partita);
 
-void aggiungi_richiesta(int, GIOCATORE*);
-void rimuovi_richiesta(int , GIOCATORE*);
-void invia_richiesta_proprietario(GAME* , GIOCATORE* );
+void aggiungiRichiesta(int, GIOCATORE*);
+void rimuoviRichiesta(int , GIOCATORE*);
+void inviaRichiestaProprietario(GIOCO* , GIOCATORE* );
 
-cJSON* read_with_timeout(int sockfd, char* buffer, size_t len, int timeout_sec,int*leave_game);
 void gestioneRichiestaJSONuscita(cJSON* json,int*leave_flag,int*leave_game, GIOCATORE *);
-void aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario);
-void remove_game_by_player_id(int id);
-void sendSuccessNewGame(int success, GIOCATORE*giocatore, int id_partita);
-void sendJoinGame(GIOCATORE*giocatore,GAME*partita);
+void aggiungiGiocoQueue(GIOCO *nuova_partita,GIOCATORE* giocatoreProprietario);
+void rimuoviGiocoByIdGiocatore(int id);
+void inviaMessaggioSuccessoNuovaPartita(int success, GIOCATORE*giocatore, int id_partita);
 
-bool aggiorna_partita(GAME*partita,GIOCATORE*giocatore,int col,int row);
-bool aggiorna_griglia(GAME*partita,GIOCATORE*giocatore,int col,int row,int turno);
-void switchTurn(GAME*partita);
+bool aggiornaPartita(GIOCO*partita,GIOCATORE*giocatore,int col,int row);
+bool aggiornaGriglia(GIOCO*partita,GIOCATORE*giocatore,int col,int row,int turno);
+void switchTurn(GIOCO*partita);
 Esito switchEsito(Esito esito);
 int switchGiocatore(int giocatore);
-Esito verifica_esito_partita(GAME*partita,int giocatore);
-void InviaEsito(GAME* partita,Esito esito,GIOCATORE*giocatore);
-bool controlla_pareggio(GAME*partita);
-bool controlla_vittoria(GAME*partita,int giocatore);
+Esito verificaEsitoPartita(GIOCO*partita,int giocatore);
+void InviaEsito(GIOCO* partita,Esito esito,GIOCATORE*giocatore);
+bool controllaPareggio(GIOCO*partita);
+bool controllaVittoria(GIOCO*partita,int giocatore);
 
 void InviaVittoriaAltroGiocatore(GIOCATORE*giocatore);
 void InviaPareggioDisconnessione(GIOCATORE*giocatore);
-GAME*SearchPartitaInCorsoByGiocatore(GIOCATORE*giocatore);
-void gestisci_esito_vittoria(GIOCATORE*giocatore,Esito esito,GAME*partita);
+GIOCO*CercaPartitaInCorsoByGiocatore(GIOCATORE*giocatore);
+void gestisciEsitoVittoria(GIOCATORE*giocatore,Esito esito,GIOCO*partita);
 
-void resetGame(GAME*partita);
-void GestionePareggioGame(GAME*partita,GIOCATORE*giocatore,bool risposta);
-void inviaMessaggioRivincita(GIOCATORE *giocatore,int risposta,GAME*partita);
+void resetGioco(GIOCO*partita);
+void GestionePareggioGame(GIOCO*partita,GIOCATORE*giocatore,bool risposta);
+void inviaMessaggioRivincita(GIOCATORE *giocatore,int risposta,GIOCO*partita);
 
 
 #endif

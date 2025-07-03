@@ -18,15 +18,14 @@ typedef struct {
     StatoRichiesta stato;
 } RICHIESTA;
 
-RICHIESTA* crea_richiesta(GIOCATORE* giocatore);
-void gestisci_richiesta(RICHIESTA* richiesta);
-void accetta_richiesta(RICHIESTA* richiesta,int id_partita,GIOCATORE*giocatore1,GIOCATORE*giocatore2);
-void rifiuta_richiesta(RICHIESTA* richiesta,int id_partita,GIOCATORE*giocatore1);
-void elimina_richiesta(RICHIESTA* richiesta);
-void remove_request_by_player(GIOCATORE* giocatore);
-RICHIESTA * searchRichiesta(int id_partita, GIOCATORE* giocatore);
-//void remove_request_by_GAME(GAME *partita);
-void decline_request_by_GAME(int id_partita);
+RICHIESTA* creaRichiesta(GIOCATORE* giocatore);
+void gestisciRichiesta(RICHIESTA* richiesta);
+void accettaRichiesta(RICHIESTA* richiesta,int id_partita,GIOCATORE*giocatore1,GIOCATORE*giocatore2);
+void rifiutaRichiesta(RICHIESTA* richiesta,int id_partita,GIOCATORE*giocatore1);
+void eliminaRichiesta(RICHIESTA* richiesta);
+void rimuoviRichiestabyGiocatore(GIOCATORE* giocatore);
+RICHIESTA * cercaRichiesta(int id_partita, GIOCATORE* giocatore);
+void RifiutaRichiestabyGioco(int id_partita);
 
 
 

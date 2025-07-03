@@ -17,32 +17,30 @@
 #include "player.h"
 #include "game.h"
 
-void crea_json(cJSON *root,int id,char*nome);
+void creaJSON(cJSON *root,int id,char*nome);
 
-bool partita_in_corso(GAME *partita);
+bool partitaInCorso(GIOCO *partita);
 
-void handlerInviaGames(int socket_nuovo);
+void handlerInviaPartite(int socket_nuovo);
 
-void joinLobby(int*leave_flag,cJSON*body,GIOCATORE*nuovo_giocatore);
+GIOCO* cercaPartitaById(int id);
 
-GAME* searchPartitaById(int id);
+void HandlerInviaMossePartita(GIOCATORE*giocatore,GIOCO*partita);
 
-void HandlerInviaMovesPartita(GIOCATORE*giocatore,GAME*partita);
+void handlerRispostaGioco(GIOCATORE*giocatore,GIOCO*partita);
 
-void handler_game_response(GIOCATORE*giocatore,GAME*partita);
+GIOCATORE* switchGiocatorePartita(GIOCATORE*giocatore,GIOCO*partita);
 
-GIOCATORE* switchGiocatorePartita(GIOCATORE*giocatore,GAME*partita);
-
-void ServerExitGame(char* buffer, GIOCATORE*nuovo_giocatore,cJSON *body);
-void ServerGameMove(char* buffer, GIOCATORE*nuovo_giocatore,cJSON *body);
-void ServerDrawGame(char* buffer, GIOCATORE*nuovo_giocatore,cJSON *body);
-void ServerVictoryGame(char* buffer, GIOCATORE*nuovo_giocatore,cJSON *body);
-void ServerDeclineRequest(char* buffer, GIOCATORE*nuovo_giocatore,cJSON *body);
-void ServerAcceptRequest(char* buffer, GIOCATORE*nuovo_giocatore,cJSON *body);
-void ServerRemoveRequest(char* buffer, GIOCATORE*nuovo_giocatore,cJSON *body);
-void ServerAddRequest(char* buffer, GIOCATORE*nuovo_giocatore,int*leave_flag,cJSON *body);
-void ServerNewGames(char* buffer, GIOCATORE*nuovo_giocatore,int *leave_flag);
-void ServerWaitingGames(char* buffer, GIOCATORE*nuovo_giocatore, int socket_nuovo);
-
+void ServerUscitaGioco(char* buffer, GIOCATORE*nuovo_giocatore,cJSON *body);
+void ServerMossaGioco(char* buffer, GIOCATORE*nuovo_giocatore,cJSON *body);
+void ServerPareggio(char* buffer, GIOCATORE*nuovo_giocatore,cJSON *body);
+void ServerVittoria(char* buffer, GIOCATORE*nuovo_giocatore,cJSON *body);
+void ServerRifiutaRichiesta(char* buffer, GIOCATORE*nuovo_giocatore,cJSON *body);
+void ServerAccettaRichiesta(char* buffer, GIOCATORE*nuovo_giocatore,cJSON *body);
+void ServerRimuoviRichiesta(char* buffer, GIOCATORE*nuovo_giocatore,cJSON *body);
+void ServerAggiungiRichiesta(char* buffer, GIOCATORE*nuovo_giocatore,int*leave_flag,cJSON *body);
+void ServerNuovaPartita(char* buffer, GIOCATORE*nuovo_giocatore,int *leave_flag);
+void ServerAspettaPartita(char* buffer, GIOCATORE*nuovo_giocatore, int socket_nuovo);
+void ServerUscitaPareggio(char* buffer, GIOCATORE* nuovo_giocatore,cJSON *body);
 
 #endif

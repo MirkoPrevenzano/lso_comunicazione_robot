@@ -2,9 +2,9 @@
 #include "server.h"
 
 // Dichiarazione extern per funzioni handler
-extern void handler_game_response(GIOCATORE* giocatore, GAME* partita);
+extern void handlerRispostaGioco(GIOCATORE* giocatore, GIOCO* partita);
 
-void aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario){
+void aggiungiGiocoQueue(GIOCO *nuova_partita,GIOCATORE* giocatoreProprietario){
 
     // MODIFICA: Controllo parametri null prima di procedere
     if (!nuova_partita || !giocatoreProprietario) {
@@ -59,7 +59,7 @@ void aggiungi_game_queue(GAME *nuova_partita,GIOCATORE* giocatoreProprietario){
 };
 
 
-void rimuovi_game_queue(GAME*partita){
+void rimuoviGiocoQueue(GIOCO*partita){
 
     if(partita!=NULL){
         // MODIFICA: Decremento numero_partite prima della ricerca per consistenza
@@ -76,7 +76,7 @@ void rimuovi_game_queue(GAME*partita){
     }
 }
 
-void remove_game_by_player_id(int id) {
+void rimuoviGiocoByIdGiocatore(int id) {
     pthread_mutex_lock(&gameListLock);
     for (int i = 0; i < MAX_GAME; ++i) {
         if (Partite[i] && Partite[i]->giocatoreParticipante[0] && Partite[i]->giocatoreParticipante[0]->id == id) {
@@ -96,25 +96,25 @@ void remove_game_by_player_id(int id) {
 }
 
 
-void new_game(int*leave_flag,char*buffer,GIOCATORE*giocatore){
-    GAME *nuova_partita = (GAME *)malloc(sizeof(GAME));
+void nuovaPartita(int*leave_flag,char*buffer,GIOCATORE*giocatore){
+    GIOCO *nuova_partita = (GIOCO *)malloc(sizeof(GIOCO));
     
     // MODIFICA: Controllo malloc fallito prima di chiamare aggiungi_game_queue
     if(!nuova_partita){
-        sendSuccessNewGame(0,giocatore, -1);
+        inviaMessaggioSuccessoNuovaPartita(0,giocatore, -1);
         return;
     }
     
-    aggiungi_game_queue(nuova_partita,giocatore);
+    aggiungiGiocoQueue(nuova_partita,giocatore);
     
     // MODIFICA: Rimosso controllo ridondante, nuova_partita è sempre valida qui
-    sendSuccessNewGame(1,giocatore, nuova_partita->id);
+    inviaMessaggioSuccessoNuovaPartita(1,giocatore, nuova_partita->id);
     printf("Partita creata con id: %d\n",nuova_partita->id);
     fflush(stdout);
     printf("Giocatore %s ha creato una partita\n",giocatore->nome);
 }
 
-void send_success_message(int success, int socket, const char* message){
+void inviaMessaggioSuccesso(int success, int socket, const char* message){
     cJSON *response = cJSON_CreateObject();
 
     cJSON_AddNumberToObject(response, "success", success);
@@ -136,7 +136,7 @@ void send_success_message(int success, int socket, const char* message){
     
 }
 
-void send_declined_request_message(int id_partita, GIOCATORE* giocatore) {
+void inviaMessaggioRichiestaRifiutata(int id_partita, GIOCATORE* giocatore) {
     cJSON *response = cJSON_CreateObject();
     cJSON_AddStringToObject(response, "path", "/decline_request");
     cJSON_AddNumberToObject(response, "game_id", id_partita);
@@ -156,23 +156,23 @@ void send_declined_request_message(int id_partita, GIOCATORE* giocatore) {
     cJSON_Delete(response);
 }
 
-void aggiungi_richiesta(int id_partita, GIOCATORE* giocatore) {
+void aggiungiRichiesta(int id_partita, GIOCATORE* giocatore) {
     pthread_mutex_lock(&gameListLock);
     
     // Controllo se id_partita è valido
     if(id_partita < 0 || id_partita >= MAX_GAME || Partite[id_partita] == NULL) {
         printf("ID partita non valido: %d\n", id_partita);
-        send_success_message(0, giocatore->socket, "Partita non trovata");
+        inviaMessaggioSuccesso(0, giocatore->socket, "Partita non trovata");
         pthread_mutex_unlock(&gameListLock);
         return;
     }
 
-    GAME* partita = Partite[id_partita];
+    GIOCO* partita = Partite[id_partita];
     
     // Controllo se il numero di richieste supera il massimo
     if(partita->numero_richieste > MAX_GIOCATORI-1) {
         printf("Numero massimo di richieste raggiunto per la partita %d\n", id_partita);
-        send_success_message(0, giocatore->socket, "Numero massimo di richieste raggiunto");
+        inviaMessaggioSuccesso(0, giocatore->socket, "Numero massimo di richieste raggiunto");
         pthread_mutex_unlock(&gameListLock);
         return;
     }
@@ -181,7 +181,7 @@ void aggiungi_richiesta(int id_partita, GIOCATORE* giocatore) {
     for(int i = 0; i < MAX_GIOCATORI-1; i++) {
         if(partita->richieste[i] && partita->richieste[i]->giocatore == giocatore) {
             printf("Il giocatore %s ha già una richiesta in questa partita\n", giocatore->nome);
-            send_success_message(0, giocatore->socket, "Richiesta già esistente");
+            inviaMessaggioSuccesso(0, giocatore->socket, "Richiesta già esistente");
             pthread_mutex_unlock(&gameListLock);
             return;
         }
@@ -190,21 +190,21 @@ void aggiungi_richiesta(int id_partita, GIOCATORE* giocatore) {
     // Controllo se la partita è in corso
     if(partita->stato_partita == IN_CORSO) {
         printf("La partita %d è già in corso, non è possibile aggiungere richieste\n", id_partita);
-        send_success_message(0, giocatore->socket, "Partita già in corso");
+        inviaMessaggioSuccesso(0, giocatore->socket, "Partita già in corso");
         pthread_mutex_unlock(&gameListLock);
         return;
     }
    
-    RICHIESTA *richiesta = crea_richiesta(giocatore);
+    RICHIESTA *richiesta = creaRichiesta(giocatore);
     bool slot_trovato = false;
     
     for(int i = 0; i < MAX_GIOCATORI-1; i++) {
         if(partita->richieste[i] == NULL) {
             partita->richieste[i] = richiesta;
             partita->numero_richieste++;
-            send_success_message(1, giocatore->socket, "Richiesta aggiunta con successo");
+            inviaMessaggioSuccesso(1, giocatore->socket, "Richiesta aggiunta con successo");
             // Invia richiesta al proprietario della partita
-            invia_richiesta_proprietario(partita, giocatore);
+            inviaRichiestaProprietario(partita, giocatore);
             slot_trovato = true;
             break;
         }
@@ -213,14 +213,14 @@ void aggiungi_richiesta(int id_partita, GIOCATORE* giocatore) {
     // Gestisce il caso in cui non si trova uno slot libero
     if(!slot_trovato) {
         printf("Impossibile aggiungere la richiesta: nessuno slot disponibile\n");
-        send_success_message(0, giocatore->socket, "Errore interno: nessuno slot disponibile");
-        elimina_richiesta(richiesta); // Libera la memoria
+        inviaMessaggioSuccesso(0, giocatore->socket, "Errore interno: nessuno slot disponibile");
+        eliminaRichiesta(richiesta); // Libera la memoria
     }
     
     pthread_mutex_unlock(&gameListLock);
 }
 
-void invia_richiesta_proprietario(GAME* partita, GIOCATORE* giocatore_richiedente) {
+void inviaRichiestaProprietario(GIOCO* partita, GIOCATORE* giocatore_richiedente) {
     if(partita == NULL || giocatore_richiedente == NULL) {
         printf("Parametri non validi per l'invio della richiesta\n");
         return;
@@ -251,28 +251,28 @@ void invia_richiesta_proprietario(GAME* partita, GIOCATORE* giocatore_richiedent
     }
 }
 
-void rimuovi_richiesta(int id_partita, GIOCATORE* giocatore) {
+void rimuoviRichiesta(int id_partita, GIOCATORE* giocatore) {
     pthread_mutex_lock(&gameListLock);
     
     // Controllo se id_partita è valido
     if(id_partita < 0 || id_partita >= MAX_GAME || Partite[id_partita] == NULL) {
         printf("ID partita non valido: %d\n", id_partita);
-        send_success_message(0, giocatore->socket, "Partita non trovata");
+        inviaMessaggioSuccesso(0, giocatore->socket, "Partita non trovata");
         pthread_mutex_unlock(&gameListLock);
         return;
     }
 
-    GAME* partita = Partite[id_partita];
+    GIOCO* partita = Partite[id_partita];
     
     // Trova e rimuovi la richiesta del giocatore
     bool richiesta_trovata = false;
     for(int i = 0; i < MAX_GIOCATORI-1; i++) {
         if(partita->richieste[i] && partita->richieste[i]->giocatore == giocatore) {
-            elimina_richiesta(partita->richieste[i]);
+            eliminaRichiesta(partita->richieste[i]);
             partita->richieste[i] = NULL;
             partita->numero_richieste--;
             printf("Richiesta rimossa per il giocatore %s dalla partita %d\n", giocatore->nome, id_partita);
-            send_success_message(1, giocatore->socket, "Richiesta rimossa con successo");
+            inviaMessaggioSuccesso(1, giocatore->socket, "Richiesta rimossa con successo");
             richiesta_trovata = true;
 
             //Invia messaggio al proprietario solo se esiste e ha socket valido
@@ -296,7 +296,7 @@ void rimuovi_richiesta(int id_partita, GIOCATORE* giocatore) {
     
     if (!richiesta_trovata) {
         printf("Nessuna richiesta trovata per il giocatore %s nella partita %d\n", giocatore->nome, id_partita);
-        send_success_message(0, giocatore->socket, "Richiesta non trovata");
+        inviaMessaggioSuccesso(0, giocatore->socket, "Richiesta non trovata");
     }
     
     pthread_mutex_unlock(&gameListLock);
@@ -339,7 +339,7 @@ void gestioneRichiestaJSONuscita(cJSON*json,int*leave_flag,int*leave_game,GIOCAT
 
 
 
-void sendSuccessNewGame(int success, GIOCATORE*giocatore, int id_partita){
+void inviaMessaggioSuccessoNuovaPartita(int success, GIOCATORE*giocatore, int id_partita){
     cJSON *root = cJSON_CreateObject();
     cJSON_AddNumberToObject(root, "success", success);
     cJSON_AddNumberToObject(root, "id_partita", id_partita);
@@ -350,7 +350,7 @@ void sendSuccessNewGame(int success, GIOCATORE*giocatore, int id_partita){
 }
 
 
-bool aggiorna_partita(GAME*partita,GIOCATORE*giocatore,int col,int row){
+bool aggiornaPartita(GIOCO*partita,GIOCATORE*giocatore,int col,int row){
     printf("Aggiornamento partita con id: %d, giocatore: %s, colonna: %d, riga: %d\n", partita->id, giocatore->nome, col, row);
     fflush(stdout);
     sem_wait(&(partita->semaforo));
@@ -358,13 +358,13 @@ bool aggiorna_partita(GAME*partita,GIOCATORE*giocatore,int col,int row){
     if(partita->giocatoreParticipante[turno]!=giocatore){
         printf("Il giocatore %s ha tentato di aggiornare la partita ma non è il suo turno\n", giocatore->nome);
         fflush(stdout);
-        send_success_message(0,giocatore->socket,"non è il tuo turno");
+        inviaMessaggioSuccesso(0,giocatore->socket,"non è il tuo turno");
         sem_post(&(partita->semaforo));
         return false;
     }else{
-        bool success = aggiorna_griglia(partita,giocatore,col,row,turno);
+        bool success = aggiornaGriglia(partita,giocatore,col,row,turno);
         if(success){
-            Esito esito = verifica_esito_partita(partita,turno+1);
+            Esito esito = verificaEsitoPartita(partita,turno+1);
             GIOCATORE*giocatore2= partita->giocatoreParticipante[switchGiocatore(turno+1)-1];
             if(esito!=NESSUN_ESITO){
                 InviaEsito(partita,esito,giocatore);
@@ -378,7 +378,7 @@ bool aggiorna_partita(GAME*partita,GIOCATORE*giocatore,int col,int row){
         }
         else
         {
-           send_success_message(0,giocatore->socket,"casella già occupata");
+           inviaMessaggioSuccesso(0,giocatore->socket,"casella già occupata");
            sem_post(&(partita->semaforo));
            return false; 
         }
@@ -388,7 +388,7 @@ bool aggiorna_partita(GAME*partita,GIOCATORE*giocatore,int col,int row){
     return true;
 }
 
-void  switchTurn(GAME*partita){
+void switchTurn(GIOCO*partita){
     if(partita->turno == 0) {
         partita->turno = 1; // Passa al giocatore 1
     } else {
@@ -398,7 +398,7 @@ void  switchTurn(GAME*partita){
     fflush(stdout);
 }
 
-bool aggiorna_griglia(GAME*partita,GIOCATORE*giocatore,int col,int row,int turno){
+bool aggiornaGriglia(GIOCO*partita,GIOCATORE*giocatore,int col,int row,int turno){
     // Rimuovo il mutex qui perché il semaforo della partita già protegge l'accesso
     if(partita->griglia[row][col]!=VUOTO){
         return false;
@@ -410,12 +410,12 @@ bool aggiorna_griglia(GAME*partita,GIOCATORE*giocatore,int col,int row,int turno
 
 }
 
-Esito verifica_esito_partita(GAME*partita,int giocatore){
-    if(controlla_vittoria(partita,giocatore))
+Esito verificaEsitoPartita(GIOCO*partita,int giocatore){
+    if(controllaVittoria(partita,giocatore))
         return VITTORIA;
-    else if(controlla_vittoria(partita,switchGiocatore(giocatore)))
+    else if(controllaVittoria(partita,switchGiocatore(giocatore)))
         return SCONFITTA;
-    else if(controlla_pareggio(partita))
+    else if(controllaPareggio(partita))
         return PAREGGIO;
 
     return NESSUN_ESITO;
@@ -438,7 +438,7 @@ Esito switchEsito(Esito esito){
         return PAREGGIO;
 }
 
-bool controlla_vittoria(GAME*partita,int giocatore){   
+bool controllaVittoria(GIOCO*partita,int giocatore){   
     TRIS(*matrice)[3]=partita->griglia;
     
 for (int i = 0; i < 3; i++) {
@@ -456,7 +456,7 @@ if ((matrice[0][0] == giocatore && matrice[1][1] == giocatore && matrice[2][2] =
 return false; // Nessuna vittoria
 }
 
-bool controlla_pareggio(GAME*partita){
+bool controllaPareggio(GIOCO*partita){
     TRIS (*matrice)[3]=partita->griglia;
         for(int i=0;i<3;i++)
             for(int j=0;j<3;j++)
@@ -467,7 +467,7 @@ bool controlla_pareggio(GAME*partita){
 
 }
 
-void InviaEsito(GAME* partita,Esito esito,GIOCATORE*giocatore){
+void InviaEsito(GIOCO* partita,Esito esito,GIOCATORE*giocatore){
     cJSON *root = cJSON_CreateObject();
     cJSON_AddStringToObject(root, "type", "/game_response");//type esito_game
     cJSON_AddNumberToObject(root, "game_id", partita->id);
@@ -499,12 +499,12 @@ void InviaEsito(GAME* partita,Esito esito,GIOCATORE*giocatore){
     send(giocatore->socket,json_str,strlen(json_str),0);
     free(json_str);
 
-    gestisci_esito_vittoria(giocatore,esito,partita);
+    gestisciEsitoVittoria(giocatore,esito,partita);
 
 }
 
 void InviaVittoriaAltroGiocatore(GIOCATORE*giocatore){
-    GAME* partita = SearchPartitaInCorsoByGiocatore(giocatore);
+    GIOCO* partita = CercaPartitaInCorsoByGiocatore(giocatore);
     if(giocatore==partita->giocatoreParticipante[0]){
         InviaEsito(partita,VITTORIA,partita->giocatoreParticipante[1]);
     }
@@ -514,10 +514,10 @@ void InviaVittoriaAltroGiocatore(GIOCATORE*giocatore){
         
 }
 
-GAME*SearchPartitaInCorsoByGiocatore(GIOCATORE*giocatore){
+GIOCO*CercaPartitaInCorsoByGiocatore(GIOCATORE*giocatore){
     pthread_mutex_lock(&gameListLock);
     for(int i=0;i< MAX_GAME ; i++){
-        if((Partite[i]->giocatoreParticipante[0] == giocatore || Partite[i]->giocatoreParticipante[1] == giocatore ) && Partite[i]->stato_partita==IN_CORSO){
+        if(Partite[i] && (Partite[i]->giocatoreParticipante[0] == giocatore || Partite[i]->giocatoreParticipante[1] == giocatore ) && Partite[i]->stato_partita==IN_CORSO){
             pthread_mutex_unlock(&gameListLock);
             return Partite[i];
         }
@@ -526,7 +526,7 @@ GAME*SearchPartitaInCorsoByGiocatore(GIOCATORE*giocatore){
     return NULL;
 }
 
-void gestisci_esito_vittoria(GIOCATORE*giocatore,Esito esito,GAME*partita){
+void gestisciEsitoVittoria(GIOCATORE*giocatore,Esito esito,GIOCO*partita){
 
     if(esito==VITTORIA){
         partita->giocatoreParticipante[0]->stato=IN_HOME;
@@ -542,29 +542,29 @@ void gestisci_esito_vittoria(GIOCATORE*giocatore,Esito esito,GAME*partita){
 
 }
 
-void resetGame(GAME*partita){
-            partita->numero_richieste = 0; // MODIFICA: Inizializza numero_richieste
-            
-            // MODIFICA: Inizializza tutto l'array richieste a NULL
-            for(int j = 0; j < MAX_GIOCATORI-1; j++) {
-                partita->richieste[j] = NULL;
-            }
-            
-            // MODIFICA: Inizializza la griglia TRIS a VUOTO 
-            for(int row = 0; row < 3; row++) {
-                for(int col = 0; col < 3; col++) {
-                    partita->griglia[row][col] = VUOTO; // Inizializza ogni cella a VUOTO (0)
-                }
-            }
-            
-            partita->turno=0;
-            partita->esito= NESSUN_ESITO;
-            partita->stato_partita = IN_ATTESA;
-            partita->voti_pareggio = 0; // MODIFICA: Inizializza voti_pareggio 
+void resetGioco(GIOCO*partita){
+    partita->numero_richieste = 0; // MODIFICA: Inizializza numero_richieste
+    
+    // MODIFICA: Inizializza tutto l'array richieste a NULL
+    for(int j = 0; j < MAX_GIOCATORI-1; j++) {
+        partita->richieste[j] = NULL;
+    }
+    
+    // MODIFICA: Inizializza la griglia TRIS a VUOTO 
+    for(int row = 0; row < 3; row++) {
+        for(int col = 0; col < 3; col++) {
+            partita->griglia[row][col] = VUOTO; // Inizializza ogni cella a VUOTO (0)
+        }
+    }
+    
+    partita->turno=0;
+    partita->esito= NESSUN_ESITO;
+    partita->stato_partita = IN_ATTESA;
+    partita->voti_pareggio = 0; // MODIFICA: Inizializza voti_pareggio 
 }
 
 
-void GestionePareggioGame(GAME* partita, GIOCATORE* giocatore, bool risposta) {
+void GestionePareggioGame(GIOCO* partita, GIOCATORE* giocatore, bool risposta) {
     if (!partita) return;
     
     pthread_mutex_lock(&gameListLock);
@@ -590,7 +590,7 @@ void GestionePareggioGame(GAME* partita, GIOCATORE* giocatore, bool risposta) {
         if (giocatore1) giocatore1->stato = IN_HOME;
         
         // Rimuovi la partita prima di sbloccare il mutex
-        rimuovi_game_queue(partita);
+        rimuoviGiocoQueue(partita);
         pthread_mutex_unlock(&gameListLock);
         
         // Invia messaggio a entrambi i giocatori DOPO aver deallocato la partita
@@ -607,7 +607,7 @@ void GestionePareggioGame(GAME* partita, GIOCATORE* giocatore, bool risposta) {
         
         partita->giocatoreParticipante[0]->stato = IN_GIOCO;
         partita->giocatoreParticipante[1]->stato = IN_GIOCO;
-        resetGame(partita);
+        resetGioco(partita);
         partita->stato_partita = IN_CORSO;
         // Invia conferma a entrambi i giocatori
         inviaMessaggioRivincita(partita->giocatoreParticipante[0], 1, partita);
@@ -619,7 +619,7 @@ void GestionePareggioGame(GAME* partita, GIOCATORE* giocatore, bool risposta) {
 
 
 
-void inviaMessaggioRivincita(GIOCATORE *giocatore,int risposta,GAME*partita){
+void inviaMessaggioRivincita(GIOCATORE *giocatore,int risposta,GIOCO*partita){
     
     if (!giocatore || giocatore->socket <= 0) {
         printf("Giocatore non valido per invio messaggio rivincita\n");
@@ -647,8 +647,8 @@ void inviaMessaggioRivincita(GIOCATORE *giocatore,int risposta,GAME*partita){
             cJSON_Delete(root);
             free(msg);
             sleep(0.1);
-            resetGame(partita); // Reset della partita per la nuova sessione
-            handler_game_response(giocatore,partita);
+            resetGioco(partita); // Reset della partita per la nuova sessione
+            handlerRispostaGioco(giocatore,partita);
         }
     } else {
         cJSON *root = cJSON_CreateObject();
@@ -664,8 +664,9 @@ void inviaMessaggioRivincita(GIOCATORE *giocatore,int risposta,GAME*partita){
 }
 
 void InviaPareggioDisconnessione(GIOCATORE*giocatore){
-    GAME*partita = SearchPartitaInCorsoByGiocatore(giocatore);
+    GIOCO*partita = CercaPartitaInCorsoByGiocatore(giocatore);
     if(partita){
+        printf("⚠️ Client %s è uscito-> ha rifiutato la rivincità\n", giocatore->nome);
         GestionePareggioGame(partita,giocatore,0);
     }
 }
