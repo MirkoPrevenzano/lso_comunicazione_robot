@@ -181,8 +181,20 @@ class HomePage(tk.Frame):
         self.welcome_label.config(text=f"Benvenuto, {nickname}!")
         self.change_view(self.current_view)
         self.periodic_update_content()
+        
+        # Carica le richieste inviate e ricevute al primo accesso alla home
+        print("🔄 Caricamento iniziale richieste...")
+        try:
+            self.actions.upload_send_requests()
+            self.actions.upload_received_requests()
+            print("✅ Caricamento richieste completato")
+        except Exception as e:
+            print(f"⚠️ Errore durante il caricamento delle richieste: {e}")
+            # Non mostriamo messagebox qui per evitare di bloccare l'interfaccia
+        
         # Avvia il polling del server tramite il manager centralizzato
         self.controller.start_global_polling()
+
 
     def __del__(self):
         """Cleanup quando l'oggetto viene distrutto"""
@@ -221,7 +233,7 @@ class HomePage(tk.Frame):
                         'mittente': data.get('player_name', 'Sconosciuto'),
                     }
                     self.request_manager.add_received_request(new_request)
-                    print(f"🔔 Richiesta 0 aggiunta dalla risposta diretta!")
+                    print("🔔 Richiesta aggiunta dalla risposta diretta!")
                     
                     # Riprova a richiedere le partite
                     response = send_to_server("/waiting_games", {})

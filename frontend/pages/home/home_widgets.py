@@ -10,7 +10,7 @@ try:
 except ImportError:
     # Fallback se constants.py non è disponibile
     CARD_FRAME_STYLE = "Card.TFrame"
-    STATO_IN_ATTESA = "in attesa"
+    STATO_IN_ATTESA = "in_attesa"
 
 
 class HomeWidgets:

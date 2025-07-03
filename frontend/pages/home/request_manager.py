@@ -105,3 +105,15 @@ class RequestManager:
                 self.home_page.update_received_requests()
             elif view_type == "sent_requests":
                 self.home_page.update_sent_requests()
+
+    def set_sent_requests(self, requests):
+        """Imposta le richieste inviate."""
+        self.sent_requests = requests
+        self._update_ui_if_needed("sent_requests")
+        print(f"✅ Richieste inviate impostate: {len(requests)} richieste")
+        
+    def set_received_requests(self, requests):
+        """Imposta le richieste ricevute."""
+        self.received_requests = requests
+        self._update_ui_if_needed("received_requests")
+        print(f"✅ Richieste ricevute impostate: {len(requests)} richieste")

@@ -28,7 +28,16 @@ class LoginPage(tk.Frame):
         input_frame.grid(row=1, column=0, sticky="ew", pady=10)
         input_frame.columnconfigure(0, weight=1)
 
-        self.username_entry = ttk.Entry(input_frame, width=30, font=("Segoe UI", 12))
+        # Registra la funzione di validazione per limitare a 30 caratteri
+        vcmd = (self.register(self.validate_nickname), '%P')
+        
+        self.username_entry = ttk.Entry(
+            input_frame, 
+            width=30, 
+            font=("Segoe UI", 12),
+            validate='key',
+            validatecommand=vcmd
+        )
         self.username_entry.grid(row=0, column=0, sticky="ew", ipady=5)
 
         send_button = ttk.Button(
@@ -42,33 +51,39 @@ class LoginPage(tk.Frame):
         self.status_label = ttk.Label(content_frame, text="", style="Status.TLabel", justify="center")
         self.status_label.grid(row=2, column=0, pady=(20, 0), sticky="ew")
 
-        
+    def validate_nickname(self, value):
+        """Valida che il nickname non superi i 30 caratteri"""
+        return len(value) <= 30
 
     def on_login_button_click(self):
-        username = self.username_entry.get()
+        username = self.username_entry.get().strip()  # Rimuove spazi all'inizio e fine
         
-
-        if username:
-            response = send_to_server("/register", {"nickname": username})
-           
-
-            try:
-                # Il server restituisce una stringa JSON, dobbiamo parsarla
-                response_data = json.loads(response)
-                if isinstance(response_data, dict) and 'id' in response_data:
-                    player_id = int(response_data['id'])
-                else:
-                    player_id = -1
-            except (json.JSONDecodeError, TypeError):
-                player_id = -1
-            
-            ##if response == "Login eseguito con successo":
-            if(player_id > -1):
-                self.status_label.config(text="Login eseguito con successo", foreground="green")
-                self.controller.shared_data['nickname'] = username
-                self.controller.shared_data['player_id'] = player_id
-                self.controller.show_frame("HomePage")
-            else:
-                self.status_label.config(text="Errore nel login " , foreground="red")
-        else:
+        # Validazione della lunghezza del nickname
+        if not username:
             self.status_label.config(text="Inserisci un nickname!", foreground="red")
+            return
+        
+        if len(username) > 30:
+            self.status_label.config(text="Il nickname deve essere al massimo 30 caratteri!", foreground="red")
+            return
+
+        response = send_to_server("/register", {"nickname": username})
+
+        try:
+            # Il server restituisce una stringa JSON, dobbiamo parsarla
+            response_data = json.loads(response)
+            if isinstance(response_data, dict) and 'id' in response_data:
+                player_id = int(response_data['id'])
+            else:
+                player_id = -1
+        except (json.JSONDecodeError, TypeError):
+            player_id = -1
+        
+        ##if response == "Login eseguito con successo":
+        if(player_id > -1):
+            self.status_label.config(text="Login eseguito con successo", foreground="green")
+            self.controller.shared_data['nickname'] = username
+            self.controller.shared_data['player_id'] = player_id
+            self.controller.show_frame("HomePage")
+        else:
+            self.status_label.config(text="Errore nel login " , foreground="red")

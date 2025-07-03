@@ -143,3 +143,35 @@ class HomeActions:
         except Exception as e:
             print(f"🗑️ DEBUG: Errore generico: {type(e).__name__}: {str(e)}")
             messagebox.showerror("Errore", f"Si è verificato un errore: {str(e)}")
+
+    def upload_send_requests(self):
+        """Carica le richieste inviate"""
+        try:
+            response = send_to_server("/get_sent_requests", {})
+            data = json.loads(response)
+            if data.get("path") == "/send_requests":
+                self.home_page.request_manager.set_sent_requests(data.get("requests", []))
+                print("✅ Richieste inviate caricate con successo")
+            else:
+                messagebox.showerror("Errore", data.get("message", "Errore nel caricamento delle richieste inviate"))
+                
+        except json.JSONDecodeError:
+            messagebox.showerror("Errore", ERROR_SERVER_RESPONSE)
+        except Exception as e:
+            messagebox.showerror("Errore", f"Si è verificato un errore: {str(e)}")
+    
+    def upload_received_requests(self):
+        """Carica le richieste ricevute"""
+        try:
+            response = send_to_server("/get_received_requests", {})
+            data = json.loads(response)
+            if data.get("path") == "/received_requests":
+                self.home_page.request_manager.set_received_requests(data.get("requests", []))
+                print("✅ Richieste ricevute caricate con successo")
+            else:
+                messagebox.showerror("Errore", data.get("message", "Errore nel caricamento delle richieste ricevute"))
+                
+        except json.JSONDecodeError:
+            messagebox.showerror("Errore", ERROR_SERVER_RESPONSE)
+        except Exception as e:
+            messagebox.showerror("Errore", f"Si è verificato un errore: {str(e)}")
