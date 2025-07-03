@@ -34,14 +34,19 @@ class HomeWidgets:
             
             # Crea la label con le informazioni
             id_partita = game.get('id_partita', 'N/A')
-            proprietario = game.get('proprietario', 'Sconosciuto')[:20]
             
-            info = f"ID: {id_partita} | Giocatore: {proprietario} | ⏳ CLICCA QUI PER UNIRTI"
+            # Gestione intelligente layout con nome giocatore su riga separata
+            proprietario = game.get('proprietario', 'Sconosciuto')
+           
+            
+            
+            # Layout su due righe: nome giocatore sopra, info partita sotto
+            info = f"Giocatore: {proprietario}\nID: {id_partita} | ⏳ CLICCA QUI PER UNIRTI"
             
             # Una sola label cliccabile invece di label + bottone
             label = ttk.Label(frame, text=info, cursor="hand2", 
                             background="black", relief="raised", 
-                            padding=(10, 5))
+                            padding=(10, 5), justify="left")
             label.pack(fill="x", padx=5, pady=5)
             
             # Bind del click direttamente sulla label
@@ -63,12 +68,15 @@ class HomeWidgets:
             frame = ttk.Frame(self.home_page.content_container, relief="raised", borderwidth=1)
             frame.pack(fill="x", padx=4, pady=2)
             
-            mittente = request.get('mittente', 'Sconosciuto')[:20]
+            # Gestione intelligente lunghezza nickname mittente con a capo
+            mittente_originale = request.get('mittente', 'Sconosciuto')
             game_id = request.get('game_id', 'N/A')
             player_id = request.get('player_id', 'N/A')
             
-            info = f"Da: {mittente} | Partita: {game_id} | 📩 Richiesta di sfida"
-            label = ttk.Label(frame, text=info)
+            info = f"Da: {mittente_originale} \n Partita: {game_id} | 📩 Richiesta di sfida"
+            
+            
+            label = ttk.Label(frame, text=info, justify="left")
             label.pack(side="left", padx=10, pady=5, fill="x", expand=True)
             
             # Due label cliccabili invece di bottoni

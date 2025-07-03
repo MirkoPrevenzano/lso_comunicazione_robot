@@ -62,7 +62,13 @@ class HomePage(tk.Frame):
 
         section1.columnconfigure(0, weight=1)
 
-        self.welcome_label = ttk.Label(section1, text="Benvenuto", style="Title.TLabel", justify="center")
+        self.welcome_label = ttk.Label(
+            section1, 
+            text="Benvenuto", 
+            style="Title.TLabel", 
+            justify="center",
+            anchor="center"
+        )
         self.welcome_label.pack(pady=(10, 5), padx=(30,0))
 
         button_new_game = ttk.Button(section1, text="Nuova partita", style=ACCENT_BUTTON_STYLE, command=self.actions.new_game)
@@ -178,7 +184,16 @@ class HomePage(tk.Frame):
 
     def update_data(self):
         nickname = self.controller.shared_data.get('nickname', "Utente")
-        self.welcome_label.config(text=f"Benvenuto, {nickname}!")
+        
+        # Gestione nickname su una sola riga con troncamento se necessario
+        if len(nickname) > 15:
+            # Per nickname lunghi, tronca con ...
+            display_name = f"Benvenuto, {nickname[:12]}...!"
+        else:
+            # Per nickname normali, mantiene tutto su una riga
+            display_name = f"Benvenuto, {nickname}!"
+            
+        self.welcome_label.config(text=display_name)
         self.change_view(self.current_view)
         self.periodic_update_content()
         

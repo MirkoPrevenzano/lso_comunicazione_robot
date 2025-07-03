@@ -158,7 +158,14 @@ class GamePage(tk.Frame):
 
     def _aggiorna_labels(self):
         """Aggiorna le label dei partecipanti e del turno."""
-        self.players_label.config(text=f"Partecipante: {self.nomePartecipante}")
+        # Gestione intelligente lunghezza nickname partecipante
+        if len(self.nomePartecipante) <= 15:
+            nome_display = self.nomePartecipante
+        else:
+            # Tronca nickname lunghi con "..."
+            nome_display = self.nomePartecipante[:12] + "..."
+        
+        self.players_label.config(text=f"Partecipante: {nome_display}")
         if self.turno == 0:
             simbolo = "✗"
         elif self.turno == 1:

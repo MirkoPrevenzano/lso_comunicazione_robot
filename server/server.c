@@ -326,6 +326,63 @@ void controllaRouter(char* buffer, GIOCATORE*nuovo_giocatore, int socket_nuovo, 
             else if(strcmp(path->valuestring, "/exit_game") == 0){
               ServerUscitaPareggio(buffer,nuovo_giocatore,body);
             }
+            else if(strcmp(path->valuestring, "/get_sent_requests") == 0){
+                // Invia le richieste al client
+                cJSON *response = cJSON_CreateObject();
+                cJSON_AddStringToObject(response, "path", "/send_requests");
+                cJSON_AddItemToObject(response, "requests", cJSON_CreateArray());
+                
+                // Aggiungi le richieste del giocatore
+                pthread_mutex_lock(&gameListLock);
+                for (int i = 0; i < MAX_GAME; i++) {
+                    if (Partite[i]) {
+                        for (int j = 0; j < MAX_GIOCATORI - 1; j++) {
+                            if (Partite[i]->richieste[j] && Partite[i]->richieste[j]->giocatore == nuovo_giocatore) {
+                                cJSON *request_json = cJSON_CreateObject();
+                                cJSON_AddNumberToObject(request_json, "game_id", Partite[i]->id);
+                                cJSON_AddNumberToObject(request_json, "player_id", Partite[i]->richieste[j]->giocatore->id);
+                                cJSON_AddStringToObject(request_json, "stato", Partite[i]->richieste[j]->stato == RICHIESTA_IN_ATTESA  ? "in_attesa" : "declined");
+                                cJSON_AddItemToArray(cJSON_GetObjectItem(response, "requests"), request_json);
+                            }
+                        }
+                    }
+                }
+                pthread_mutex_unlock(&gameListLock);
+                
+                char *response_str = cJSON_PrintUnformatted(response);
+                send(nuovo_giocatore->socket, response_str, strlen(response_str), 0);
+                
+                free(response_str);
+                cJSON_Delete(response);
+            }
+            else if(strcmp(path->valuestring, "/get_received_requests") == 0){
+                // Invia le richieste ricevute al client
+                cJSON *response = cJSON_CreateObject();
+                cJSON_AddStringToObject(response, "path", "/received_requests");
+                cJSON_AddItemToObject(response, "requests", cJSON_CreateArray());
+                
+                pthread_mutex_lock(&gameListLock);
+                for (int i = 0; i < MAX_GAME; i++) {
+                    if (Partite[i] ) {
+                        for (int j = 0; j < MAX_GIOCATORI - 1; j++) {
+                            if (Partite[i]->richieste[j] && Partite[i]->giocatoreParticipante[0] == nuovo_giocatore && Partite[i]->richieste[j]->stato != RICHIESTA_RIFIUTATA) {
+                                cJSON *request_json = cJSON_CreateObject();
+                                cJSON_AddNumberToObject(request_json, "game_id", Partite[i]->id);
+                                cJSON_AddNumberToObject(request_json, "player_id", Partite[i]->richieste[j]->giocatore->id);
+                                cJSON_AddStringToObject(request_json,  "mittente", Partite[i]->richieste[j]->giocatore->nome);
+                                cJSON_AddItemToArray(cJSON_GetObjectItem(response, "requests"), request_json);
+                            }
+                        }
+                    }
+                }
+                pthread_mutex_unlock(&gameListLock);
+                
+                char *response_str = cJSON_PrintUnformatted(response);
+                send(nuovo_giocatore->socket, response_str, strlen(response_str), 0);
+                
+                free(response_str);
+                cJSON_Delete(response);
+            }
             else {
                 printf("Path non riconosciuto per giocatore IN_HOME: %s\n", path->valuestring);
                 inviaMessaggioSuccesso(0, nuovo_giocatore->socket, "Comando non disponibile");
