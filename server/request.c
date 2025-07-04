@@ -16,9 +16,9 @@ void rimuoviRichiestabyGiocatore(GIOCATORE *giocatore) {
         if (Partite[j]) {
             for (int k = 0; k < MAX_GIOCATORI-1; ++k) {
                 if (Partite[j]->richieste[k] && Partite[j]->richieste[k]->giocatore == giocatore) {
-                    free(Partite[j]->richieste[k]); 
+                    eliminaRichiesta(Partite[j]->richieste[k]); 
                     Partite[j]->richieste[k] = NULL;
-                    Partite[j]->numero_richieste--;
+                    Partite[j]->numeroRichieste--;
                 }
             }
         }
@@ -28,19 +28,23 @@ void rimuoviRichiestabyGiocatore(GIOCATORE *giocatore) {
  
 }
 
-void RifiutaRichiestabyGioco(int id_partita) {
-    GIOCO*partita= Partite[id_partita];
-    if(partita == NULL) {
-    
-        return; // Non c'è nulla da rimuovere
+void rifiutaRichiestabyGioco(int idPartita) {
+    if(idPartita < 0 || idPartita >= MAX_GAME) {
+        printf("ID partita non valido: %d\n", idPartita);
+        return; // Non c'è nulla da rifiutare
     }
+
+    GIOCO *partita= Partite[idPartita];
+    if(partita == NULL) 
+        return; // Non c'è nulla da rimuovere
+    
     // Rimuove le richiesta associate alla partita
     for (int j = 0; j < MAX_GIOCATORI-1; ++j) {
         if (partita->richieste[j] && partita->richieste[j]->stato == RICHIESTA_IN_ATTESA) { 
-            rifiutaRichiesta(partita->richieste[j], id_partita, NULL);
+            rifiutaRichiesta(partita->richieste[j], idPartita, NULL);
         }
     }
-    printf("Rifiuto di tutte le richieste in attesa per la partita %d\n", id_partita);
+    printf("Rifiuto di tutte le richieste in attesa per la partita %d\n", idPartita);
 }
 
 RICHIESTA * creaRichiesta(GIOCATORE *giocatore) {
@@ -60,13 +64,16 @@ void eliminaRichiesta(RICHIESTA *richiesta) {
     }
 }
 
-void accettaRichiesta(RICHIESTA* richiesta,int id_partita,GIOCATORE*giocatore1,GIOCATORE*giocatore2){
-
-
-    GIOCO*partita= Partite[id_partita];
+void accettaRichiesta(RICHIESTA* richiesta,int idPartita,GIOCATORE*giocatore1,GIOCATORE*giocatore2){
+    if(idPartita < 0 || idPartita >= MAX_GAME) {
+        printf("ID partita non valido: %d\n", idPartita);
+        inviaMessaggioSuccesso(0, giocatore1->socket, "errore, partita non trovata");
+        return;
+    }
+    
+    GIOCO*partita= Partite[idPartita];
     if(richiesta==NULL){
-        inviaMessaggioSuccesso(0, giocatore1->socket, "errore");
-        inviaMessaggioSuccesso(0, giocatore2->socket, "errore");
+        inviaMessaggioSuccesso(0, giocatore1->socket, "errore, richiesta non trovata");
         return;
     }
     else if(giocatore2->stato != IN_HOME){
@@ -74,8 +81,7 @@ void accettaRichiesta(RICHIESTA* richiesta,int id_partita,GIOCATORE*giocatore1,G
         return;
     }
     else{
-        
-        printf("Accettazione della richiesta per la partita %d tra %s e %s\n", id_partita, giocatore1->nome, giocatore2->nome);
+        printf("Accettazione della richiesta per la partita %d tra %s e %s\n", idPartita, giocatore1->nome, giocatore2->nome);
         rimuoviRichiestabyGiocatore(giocatore1);
         rimuoviRichiestabyGiocatore(giocatore2);
         richiesta->stato = RICHIESTA_ACCETTATA; // Aggiorna lo stato della richiesta
@@ -86,15 +92,14 @@ void accettaRichiesta(RICHIESTA* richiesta,int id_partita,GIOCATORE*giocatore1,G
         //eliminare tutte le richieste
 
         //rifiuto tutte le richieste in attesa per questa partita
-        RifiutaRichiestabyGioco(id_partita);
-
+        rifiutaRichiestabyGioco(idPartita);
        
         //inviare messaggio di successo e info partita ai giocatori
 
         //{success:1, game_id: id_partita, player_id: giocatore2->id, "simbolo": X, "nickname_partecipante": giocatore2->nome, "game_data": {TRIS:partita->griglia, turno: 0}}
         cJSON *success_message1 = cJSON_CreateObject();
         cJSON_AddNumberToObject(success_message1, "success", 1);
-        cJSON_AddNumberToObject(success_message1, "game_id", id_partita);
+        cJSON_AddNumberToObject(success_message1, "game_id", idPartita);
         cJSON_AddNumberToObject(success_message1, "player_id", giocatore2->id);
         cJSON_AddStringToObject(success_message1, "simbolo", "X");
         cJSON_AddStringToObject(success_message1, "nickname_partecipante", giocatore2->nome);
@@ -119,7 +124,7 @@ void accettaRichiesta(RICHIESTA* richiesta,int id_partita,GIOCATORE*giocatore1,G
         //{path: "/join_game", game_id: id_partita, player_id: giocatore1->id, "simbolo": O, "nickname_partecipante": giocatore1->nome, "game_data": {TRIS:partita->griglia, turno:0}}
         cJSON *success_message2 = cJSON_CreateObject();
         cJSON_AddStringToObject(success_message2, "path", "/game_start");
-        cJSON_AddNumberToObject(success_message2, "game_id", id_partita);
+        cJSON_AddNumberToObject(success_message2, "game_id", idPartita);
         cJSON_AddNumberToObject(success_message2, "player_id", giocatore1->id);
         cJSON_AddStringToObject(success_message2, "simbolo", "O");
         cJSON_AddStringToObject(success_message2, "nickname_partecipante", giocatore1->nome);
@@ -139,10 +144,10 @@ void accettaRichiesta(RICHIESTA* richiesta,int id_partita,GIOCATORE*giocatore1,G
         send(giocatore2->socket, message2, strlen(message2), 0);
         cJSON_Delete(success_message2);
         free(message2); 
-        printf("Partita %d iniziata tra %s e %s\n", id_partita, giocatore1->nome, giocatore2->nome);
+        printf("Partita %d iniziata tra %s e %s\n", idPartita, giocatore1->nome, giocatore2->nome);
         fflush(stdout);
         // Imposta lo stato della partita come IN_CORSO
-        partita->stato_partita = IN_CORSO;
+        partita->statoPartita = IN_CORSO;
 
 
     }
@@ -167,6 +172,12 @@ void rifiutaRichiesta(RICHIESTA* richiesta,int id_partita,GIOCATORE*giocatore1){
         return;
     }else{
         richiesta->stato = RICHIESTA_RIFIUTATA; // Aggiorna lo stato della richiesta
+        if(richiesta->giocatore == NULL) {
+            printf("Nessun giocatore associato alla richiesta\n");
+            if(giocatore1 != NULL)
+                inviaMessaggioSuccesso(0, giocatore1->socket, "errore, giocatore non trovato");
+            return;
+        }
         inviaMessaggioRichiestaRifiutata(id_partita, richiesta->giocatore);
         printf("Richiesta rimossa per il giocatore %s dalla partita %d\n", richiesta->giocatore->nome, id_partita);
         if(giocatore1 != NULL) {
@@ -177,8 +188,6 @@ void rifiutaRichiesta(RICHIESTA* richiesta,int id_partita,GIOCATORE*giocatore1){
 }
 
 RICHIESTA * cercaRichiesta(int id_partita, GIOCATORE* giocatore){
-    
-    
     // Controllo se id_partita è valido
     if(id_partita < 0 || id_partita >= MAX_GAME || Partite[id_partita] == NULL) {
         printf("ID partita non valido: %d\n", id_partita);
@@ -200,11 +209,5 @@ RICHIESTA * cercaRichiesta(int id_partita, GIOCATORE* giocatore){
     if (!richiesta_trovata) {
         printf("Nessuna richiesta trovata per il giocatore %s nella partita %d\n", giocatore->nome, id_partita);
     }
-    
-
-  
-
     return NULL;
-
-
 }

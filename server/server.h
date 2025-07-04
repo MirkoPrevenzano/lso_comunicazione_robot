@@ -25,8 +25,8 @@
 //ogni gioco deve sempre avere un proprietario in qualsiasi momento
 
 // Dichiarazioni
-extern int numero_connessioni; // Numero di connessioni attive
-extern int numero_partite; // Numero di partite attive
+extern int numeroConnessioni; // Numero di connessioni attive
+extern int numeroPartite; // Numero di partite attive
 
 
 extern GIOCO* Partite[MAX_GAME]; // Array di puntatori a partite
@@ -41,18 +41,18 @@ extern pthread_mutex_t gameListLock; // Mutex per proteggere l'accesso alla list
 //uso di possibili liste linkate
 
 
-bool queueAggiunta(GIOCATORE*giocatore_add);
+bool queueAggiunta(GIOCATORE* nuovoGiocatore);
 
 void queueRimozione(int id);
 
-void * controllaRouterThread(void *);
+void *controllaRouterThread(void *);
 
-void *handle_client(void *arg);
+void *handleClient(void *arg);
 
-void controllaRouter(char* buffer, GIOCATORE*nuovo_giocatore, int socket_nuovo, int *leave_flag);
+void controllaRouter(char* buffer, GIOCATORE*nuovo_giocatore, int socket_nuovo);
 
-void *handle_close(void *);
+void *handleClose(void *);
 
-GIOCATORE * CercaGiocatoreById(int id_player);
+GIOCATORE  *cercaGiocatoreById(int id_player);
 
 #endif

@@ -19,13 +19,12 @@ typedef struct {
 } RICHIESTA;
 
 RICHIESTA* creaRichiesta(GIOCATORE* giocatore);
-void gestisciRichiesta(RICHIESTA* richiesta);
-void accettaRichiesta(RICHIESTA* richiesta,int id_partita,GIOCATORE*giocatore1,GIOCATORE*giocatore2);
-void rifiutaRichiesta(RICHIESTA* richiesta,int id_partita,GIOCATORE*giocatore1);
+void accettaRichiesta(RICHIESTA* richiesta,int idPartita,GIOCATORE*giocatore1,GIOCATORE*giocatore2);
+void rifiutaRichiesta(RICHIESTA* richiesta,int idPartita,GIOCATORE*giocatore1);
 void eliminaRichiesta(RICHIESTA* richiesta);
 void rimuoviRichiestabyGiocatore(GIOCATORE* giocatore);
-RICHIESTA * cercaRichiesta(int id_partita, GIOCATORE* giocatore);
-void RifiutaRichiestabyGioco(int id_partita);
+RICHIESTA *cercaRichiesta(int idPartita, GIOCATORE* giocatore);
+void rifiutaRichiestabyGioco(int idPartita);
 
 
 

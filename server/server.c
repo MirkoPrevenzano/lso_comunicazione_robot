@@ -1,8 +1,8 @@
 #include "./server.h"
 #include "./handler.h"
 
-int numero_connessioni = 0;
-int numero_partite = 0;
+int numeroConnessioni = 0;
+int numeroPartite = 0;
 
 GIOCO* Partite[MAX_GAME] = { NULL };
 GIOCATORE* Giocatori[MAX_GIOCATORI] = { NULL };
@@ -19,7 +19,7 @@ char *msg2 = "disconnesione";
 //ogni gioco deve sempre avere un proprietario in qualsiasi momento
 //GIOCATORE* Giocatori[MAX_GIOCATORI]; verrà trattata come una pseudo-coda.
 
-GIOCATORE * CercaGiocatoreById(int id_player){
+GIOCATORE * cercaGiocatoreById(int id_player){
     pthread_mutex_lock(&playerListLock);
     for(int i = 0 ; i<MAX_GIOCATORI;i++){
         if(Giocatori[i] && Giocatori[i]->id==id_player){
@@ -32,9 +32,9 @@ GIOCATORE * CercaGiocatoreById(int id_player){
     return NULL;
 }
 
-bool queueAggiunta(GIOCATORE*giocatore_add){
+bool queueAggiunta(GIOCATORE* nuovoGiocatore){
     //aggiunto controllo per evitare che giocatore_add sia NULL
-    if (!giocatore_add) {
+    if (!nuovoGiocatore) {
         printf("Errore: giocatore_add è NULL\n");
         return false;
     }
@@ -44,8 +44,8 @@ bool queueAggiunta(GIOCATORE*giocatore_add){
 	for(int i=0; i < MAX_GIOCATORI; ++i){
 		if(!Giocatori[i] && !trovato){
             trovato = true;
-            numero_connessioni++;
-			Giocatori[i] = giocatore_add;
+            numeroConnessioni++;
+			Giocatori[i] = nuovoGiocatore;
             Giocatori[i]->id = i;
             Giocatori[i]->stato = IN_HOME; 
 		}
@@ -68,8 +68,8 @@ void queueRimozione(int id){
 		}
 	}
     if(trovato){
-        numero_connessioni--;
-        printf("Connessione chiusa, numero connessioni: %d\n", numero_connessioni);
+        numeroConnessioni--;
+        printf("Connessione chiusa, numero connessioni: %d\n", numeroConnessioni);
         fflush(stdout);
     }
     else
@@ -79,29 +79,29 @@ void queueRimozione(int id){
 }
 
 
-void *handle_client(void *arg) {
+void *handleClient(void *arg) {
     char buffer[BUFFER_SIZE];
     int leave_flag = 0;
     int *socket_ptr = (int *)arg;
     int socket_fd = *socket_ptr;
     
-    // ✅ LIBERA SUBITO il socket pointer
+    // libero il socket pointer
     free(socket_ptr);
     
     printf("Nuovo client connesso\n");
     fflush(stdout);
 
-    GIOCATORE *nuovo_giocatore = malloc(sizeof(GIOCATORE));
-    if (!nuovo_giocatore) {
+    GIOCATORE *nuovoGiocatore = malloc(sizeof(GIOCATORE));
+    if (!nuovoGiocatore) {
         fprintf(stderr, "Errore allocazione memoria giocatore\n");
         close(socket_fd);
         pthread_exit(NULL);
     }
 
     // Inizializza il nuovo giocatore
-    memset(nuovo_giocatore, 0, sizeof(GIOCATORE));
-    nuovo_giocatore->socket = socket_fd;
-    nuovo_giocatore->id = -1; // ID non valido inizialmente
+    memset(nuovoGiocatore, 0, sizeof(GIOCATORE));
+    nuovoGiocatore->socket = socket_fd;
+    nuovoGiocatore->id = -1; // ID non valido inizialmente
 
     int size = read(socket_fd, buffer, sizeof(buffer) - 1);
     if (size <= 0) {
@@ -140,9 +140,9 @@ void *handle_client(void *arg) {
                         fprintf(stderr, "Campo 'nickname' mancante o non valido\n");
                         leave_flag = 1;
                     } else {
-                        strncpy(nuovo_giocatore->nome, nickname->valuestring, sizeof(nuovo_giocatore->nome) - 1);
-                        nuovo_giocatore->nome[sizeof(nuovo_giocatore->nome) - 1] = '\0';
-                        printf("Giocatore %s registrato\n", nuovo_giocatore->nome);
+                        strncpy(nuovoGiocatore->nome, nickname->valuestring, sizeof(nuovoGiocatore->nome) - 1);
+                        nuovoGiocatore->nome[sizeof(nuovoGiocatore->nome) - 1] = '\0';
+                        printf("Giocatore %s registrato\n", nuovoGiocatore->nome);
                     }
                     cJSON_Delete(body_json);
                 }
@@ -152,34 +152,34 @@ void *handle_client(void *arg) {
 
         if (!leave_flag) {
             // Aggiungi il giocatore alla coda
-            bool added = queueAggiunta(nuovo_giocatore);
+            bool added = queueAggiunta(nuovoGiocatore);
             if (!added) {
                 printf("Server pieno - impossibile aggiungere giocatore\n");
                 close(socket_fd);
-                free(nuovo_giocatore);
+                free(nuovoGiocatore);
                 pthread_exit(NULL);
             }
         
             // Invia id del giocatore al client
             cJSON *response = cJSON_CreateObject();
-            cJSON_AddNumberToObject(response, "id", nuovo_giocatore->id);
+            cJSON_AddNumberToObject(response, "id", nuovoGiocatore->id);
             char *response_str = cJSON_PrintUnformatted(response);
             send(socket_fd, response_str, strlen(response_str), 0);
-            printf("Giocatore %s connesso con ID %d\n", nuovo_giocatore->nome, nuovo_giocatore->id);
+            printf("Giocatore %s connesso con ID %d\n", nuovoGiocatore->nome, nuovoGiocatore->id);
             fflush(stdout);
 
             free(response_str);
             cJSON_Delete(response);
             // Avvia il thread per controllare il router
             pthread_t router_thread;
-            pthread_create(&router_thread, NULL, controllaRouterThread, nuovo_giocatore);
-            //cosa fa detach?
+            pthread_create(&router_thread, NULL, controllaRouterThread, nuovoGiocatore);
+
             // detach permette al thread di liberare le risorse automaticamente quando termina
-            pthread_detach(router_thread); // Detach per liberare risorse automaticamente
+            pthread_detach(router_thread);
             
             //thread per gestire eventuali disconnessioni
             pthread_t disconnect_thread;
-            pthread_create(&disconnect_thread, NULL, handle_close, nuovo_giocatore);
+            pthread_create(&disconnect_thread, NULL, handleClose, nuovoGiocatore);
             pthread_detach(disconnect_thread); // Detach per liberare risorse automaticamente
             return NULL;
 
@@ -189,7 +189,7 @@ void *handle_client(void *arg) {
             printf("Registrazione giocatore fallita\n");
             fflush(stdout);
             close(socket_fd);
-            free(nuovo_giocatore);
+            free(nuovoGiocatore);
         }
 
         
@@ -199,7 +199,7 @@ void *handle_client(void *arg) {
     return NULL;
 }
 
-void *handle_close(void *arg) {
+void *handleClose(void *arg) {
     GIOCATORE *giocatore = (GIOCATORE *)arg;
 
     while (1) {
@@ -222,11 +222,11 @@ void *handle_close(void *arg) {
 
             if (n <= 0) { // Il socket e' stato chiuso
                 printf("⚠️ Client %s disconnesso (monitor)\n", giocatore->nome);
-                if(giocatore->stato==IN_GIOCO){// MODIFICA: gestione di eventuali partite aperte 
-                    InviaVittoriaAltroGiocatore(giocatore);
+                if(giocatore->stato==IN_GIOCO){//gestione di eventuali partite aperte 
+                    inviaVittoriaAltroGiocatore(giocatore);
                     printf("⚠️ Client %s è uscito dalla partita\n", giocatore->nome);
                 }else{
-                    InviaPareggioDisconnessione(giocatore);
+                    inviaPareggioDisconnessione(giocatore);
                 }
                    
                 pthread_mutex_lock(&playerListLock);
@@ -251,15 +251,15 @@ void *handle_close(void *arg) {
 
 // Funzione per controllare il router e gestire le richieste
 void * controllaRouterThread(void *arg) {
-    GIOCATORE *nuovo_giocatore = (GIOCATORE *)arg;
+    GIOCATORE *nuovoGiocatore = (GIOCATORE *)arg;
 
-    if(nuovo_giocatore == NULL) {
+    if(nuovoGiocatore == NULL) {
         return NULL; 
     }
     char buffer[BUFFER_SIZE];
     int leave_flag = 0;
-    int socket_fd = nuovo_giocatore->socket;
-    printf("Thread di controllo router avviato per il giocatore %s\n", nuovo_giocatore->nome);
+    int socket_fd = nuovoGiocatore->socket;
+    printf("Thread di controllo router avviato per il giocatore %s\n", nuovoGiocatore->nome);
     fflush(stdout);
     
     // Inizializza il buffer
@@ -276,132 +276,84 @@ void * controllaRouterThread(void *arg) {
         buffer[size] = '\0';
         
         // Gestisce tutti i messaggi in base allo stato del giocatore
-        controllaRouter(buffer, nuovo_giocatore, socket_fd, &leave_flag);
+        controllaRouter(buffer, nuovoGiocatore, socket_fd);
     }
     
-    printf("Thread router terminato per giocatore %s\n", nuovo_giocatore->nome);
+    printf("Thread router terminato per giocatore %s\n", nuovoGiocatore->nome);
     return NULL; // Termina il thread
 }
 
-void controllaRouter(char* buffer, GIOCATORE*nuovo_giocatore, int socket_nuovo, int *leave_flag){
+void controllaRouter(char* buffer, GIOCATORE *nuovoGiocatore, int socket_nuovo){
         
     cJSON *json = cJSON_Parse(buffer);
-        if (!json) return;
-        cJSON *path = cJSON_GetObjectItem(json, "path");
-        cJSON *body = cJSON_GetObjectItem(json, "body");
+    if (!json) return;
+    cJSON *path = cJSON_GetObjectItem(json, "path");
+    cJSON *body = cJSON_GetObjectItem(json, "body");
 
-        //aggiungi controllo per path se è vuoto
-        if (!path || !cJSON_IsString(path)) {
-            printf("Campo 'path' mancante o non valido\n");
-            cJSON_Delete(json);
-            return;
-        }
+    //aggiungi controllo per path se è vuoto
+    if (!path || !cJSON_IsString(path)) {
+        printf("Campo 'path' mancante o non valido\n");
+        cJSON_Delete(json);
+        return;
+    }
 
-        // Messaggi disponibili solo quando il giocatore è IN_HOME
-        if (nuovo_giocatore->stato == IN_HOME) {
-            //questo primo path è restituisce al client la lista dei giochi in attesa
-            if (strcmp(path->valuestring, "/waiting_games") == 0) {
-               ServerAspettaPartita(buffer,nuovo_giocatore,socket_nuovo);
-            }else if(strcmp(path->valuestring, "/new_game") == 0) {
-               ServerNuovaPartita(buffer,nuovo_giocatore,leave_flag);
-            }
-            else if(strcmp(path->valuestring, "/add_request") == 0) {
-               ServerAggiungiRichiesta(buffer,nuovo_giocatore,leave_flag,body);
-            }
-            else if(strcmp(path->valuestring, "/remove_request") == 0) {
-               ServerRimuoviRichiesta(buffer,nuovo_giocatore,body);
-            }
-            else if(strcmp(path->valuestring, "/accept_request") == 0) {
-                ServerAccettaRichiesta(buffer,nuovo_giocatore,body);
-            }
-            else if(strcmp(path->valuestring, "/decline_request") == 0) {
-                ServerRifiutaRichiesta(buffer,nuovo_giocatore,body);
-            }
-            else if(strcmp(path->valuestring, "/vittoria_game") == 0){
-                ServerVittoria(buffer,nuovo_giocatore,body);
-            }
-            else if(strcmp(path->valuestring, "/pareggio_game") == 0){
-               ServerPareggio(buffer,nuovo_giocatore,body);
-            }
-            else if(strcmp(path->valuestring, "/exit_game") == 0){
-              ServerUscitaPareggio(buffer,nuovo_giocatore,body);
-            }
-            else if(strcmp(path->valuestring, "/get_sent_requests") == 0){
-                // Invia le richieste al client
-                cJSON *response = cJSON_CreateObject();
-                cJSON_AddStringToObject(response, "path", "/send_requests");
-                cJSON_AddItemToObject(response, "requests", cJSON_CreateArray());
-                
-                // Aggiungi le richieste del giocatore
-                pthread_mutex_lock(&gameListLock);
-                for (int i = 0; i < MAX_GAME; i++) {
-                    if (Partite[i]) {
-                        for (int j = 0; j < MAX_GIOCATORI - 1; j++) {
-                            if (Partite[i]->richieste[j] && Partite[i]->richieste[j]->giocatore == nuovo_giocatore) {
-                                cJSON *request_json = cJSON_CreateObject();
-                                cJSON_AddNumberToObject(request_json, "game_id", Partite[i]->id);
-                                cJSON_AddNumberToObject(request_json, "player_id", Partite[i]->richieste[j]->giocatore->id);
-                                cJSON_AddStringToObject(request_json, "stato", Partite[i]->richieste[j]->stato == RICHIESTA_IN_ATTESA  ? "in_attesa" : "declined");
-                                cJSON_AddItemToArray(cJSON_GetObjectItem(response, "requests"), request_json);
-                            }
-                        }
-                    }
-                }
-                pthread_mutex_unlock(&gameListLock);
-                
-                char *response_str = cJSON_PrintUnformatted(response);
-                send(nuovo_giocatore->socket, response_str, strlen(response_str), 0);
-                
-                free(response_str);
-                cJSON_Delete(response);
-            }
-            else if(strcmp(path->valuestring, "/get_received_requests") == 0){
-                // Invia le richieste ricevute al client
-                cJSON *response = cJSON_CreateObject();
-                cJSON_AddStringToObject(response, "path", "/received_requests");
-                cJSON_AddItemToObject(response, "requests", cJSON_CreateArray());
-                
-                pthread_mutex_lock(&gameListLock);
-                for (int i = 0; i < MAX_GAME; i++) {
-                    if (Partite[i] ) {
-                        for (int j = 0; j < MAX_GIOCATORI - 1; j++) {
-                            if (Partite[i]->richieste[j] && Partite[i]->giocatoreParticipante[0] == nuovo_giocatore && Partite[i]->richieste[j]->stato != RICHIESTA_RIFIUTATA) {
-                                cJSON *request_json = cJSON_CreateObject();
-                                cJSON_AddNumberToObject(request_json, "game_id", Partite[i]->id);
-                                cJSON_AddNumberToObject(request_json, "player_id", Partite[i]->richieste[j]->giocatore->id);
-                                cJSON_AddStringToObject(request_json,  "mittente", Partite[i]->richieste[j]->giocatore->nome);
-                                cJSON_AddItemToArray(cJSON_GetObjectItem(response, "requests"), request_json);
-                            }
-                        }
-                    }
-                }
-                pthread_mutex_unlock(&gameListLock);
-                
-                char *response_str = cJSON_PrintUnformatted(response);
-                send(nuovo_giocatore->socket, response_str, strlen(response_str), 0);
-                
-                free(response_str);
-                cJSON_Delete(response);
-            }
-            else {
-                printf("Path non riconosciuto per giocatore IN_HOME: %s\n", path->valuestring);
-                inviaMessaggioSuccesso(0, nuovo_giocatore->socket, "Comando non disponibile");
-            }
-        } else if (nuovo_giocatore->stato == IN_GIOCO) {
-            if(strcmp(path->valuestring, "/game_move") == 0){
-              ServerMossaGioco(buffer,nuovo_giocatore,body);
-            }
-            if(strcmp(path->valuestring, "/exit_game") == 0){
-              ServerUscitaGioco(buffer,nuovo_giocatore,body);
-            }
+    // Messaggi disponibili solo quando il giocatore è IN_HOME
+    if (nuovoGiocatore->stato == IN_HOME) {
+        //questo primo path è restituisce al client la lista dei giochi in attesa
+        if (strcmp(path->valuestring, "/waiting_games") == 0) {
+            serverAspettaPartita(buffer,nuovoGiocatore,socket_nuovo);
+        }else if(strcmp(path->valuestring, "/new_game") == 0) {
+            serverNuovaPartita(buffer,nuovoGiocatore);
         }
+        else if(strcmp(path->valuestring, "/add_request") == 0) {
+            serverAggiungiRichiesta(buffer,nuovoGiocatore,body);
+        }
+        else if(strcmp(path->valuestring, "/remove_request") == 0) {
+            serverRimuoviRichiesta(buffer,nuovoGiocatore,body);
+        }
+        else if(strcmp(path->valuestring, "/accept_request") == 0) {
+            serverAccettaRichiesta(buffer,nuovoGiocatore,body);
+        }
+        else if(strcmp(path->valuestring, "/decline_request") == 0) {
+            serverRifiutaRichiesta(buffer,nuovoGiocatore,body);
+        }
+        else if(strcmp(path->valuestring, "/vittoria_game") == 0){
+            serverVittoria(buffer,nuovoGiocatore,body);
+        }
+        else if(strcmp(path->valuestring, "/pareggio_game") == 0){
+            serverPareggio(buffer,nuovoGiocatore,body);
+        }
+        else if(strcmp(path->valuestring, "/exit_game") == 0){
+            serverUscitaPareggio(buffer,nuovoGiocatore,body);
+        }
+        else if(strcmp(path->valuestring, "/get_sent_requests") == 0){
+            serverRichiesteInviate(buffer,nuovoGiocatore,body);
+        }
+        else if(strcmp(path->valuestring, "/get_received_requests") == 0){
+            serverRichiesteRicevute(buffer, nuovoGiocatore,body);
+        }
+        else {
+            printf("Path non riconosciuto per giocatore IN_HOME: %s\n", path->valuestring);
+            inviaMessaggioSuccesso(0, nuovoGiocatore->socket, "Comando non disponibile");
+        }
+    } else if (nuovoGiocatore->stato == IN_GIOCO) {
+        if(strcmp(path->valuestring, "/game_move") == 0){
+            serverMossaGioco(buffer,nuovoGiocatore,body);
+        }
+        else if(strcmp(path->valuestring, "/exit_game") == 0){
+            serverUscitaGioco(buffer,nuovoGiocatore,body);
+        }
+        else {
+            printf("Path non riconosciuto per giocatore IN_GIOCO: %s\n", path->valuestring);
+            inviaMessaggioSuccesso(0, nuovoGiocatore->socket, "Comando non disponibile in partita");
+        }
+    }
     else 
     {
-        printf("Stato giocatore non riconosciuto: %d\n", nuovo_giocatore->stato);
-        inviaMessaggioSuccesso(0, nuovo_giocatore->socket, "Stato non valido");
+        printf("Stato giocatore non riconosciuto: %d\n", nuovoGiocatore->stato);
+        inviaMessaggioSuccesso(0, nuovoGiocatore->socket, "Stato non valido");
     }
-        
-        cJSON_Delete(json);
+    cJSON_Delete(json);
 }
 
 
@@ -446,10 +398,10 @@ int main(){
         printf("Sono in attesa\n");
         fflush(stdout);
 
-        int * socket_nuovo = (int*)malloc(sizeof(int));
-        if ((*socket_nuovo = accept(fd, (struct sockaddr *)&address,(socklen_t*)&addrlen)) < 0) {
+        int * nuovoSocket = (int*)malloc(sizeof(int));
+        if ((*nuovoSocket = accept(fd, (struct sockaddr *)&address,(socklen_t*)&addrlen)) < 0) {
             perror("errore_accept");
-            free(socket_nuovo);
+            free(nuovoSocket);
             continue;
         }
         printf("Connessione accettata\n");
@@ -458,7 +410,7 @@ int main(){
 
         pthread_t thread_id;
         // Creazione del thread per gestire il client
-        pthread_create(&thread_id, NULL, handle_client, socket_nuovo);
+        pthread_create(&thread_id, NULL, handleClient, nuovoSocket);
         //controllo se thread_id è stato creato correttamente
         pthread_detach(thread_id); // Detach per liberare risorse automaticamente
         
@@ -467,4 +419,4 @@ int main(){
 
         close(fd);
         return 0;
-    }
+}

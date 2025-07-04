@@ -25,22 +25,36 @@ void handlerInviaPartite(int socket_nuovo);
 
 GIOCO* cercaPartitaById(int id);
 
-void HandlerInviaMossePartita(GIOCATORE*giocatore,GIOCO*partita);
+void handlerInviaMossePartita(GIOCATORE *giocatore,GIOCO *partita);
+ 
 
-void handlerRispostaGioco(GIOCATORE*giocatore,GIOCO*partita);
+GIOCATORE* switchGiocatorePartita(GIOCATORE *giocatore,GIOCO *partita);
 
-GIOCATORE* switchGiocatorePartita(GIOCATORE*giocatore,GIOCO*partita);
+void serverUscitaGioco(char *buffer, GIOCATORE *nuovoGiocatore,cJSON *body);
 
-void ServerUscitaGioco(char* buffer, GIOCATORE*nuovo_giocatore,cJSON *body);
-void ServerMossaGioco(char* buffer, GIOCATORE*nuovo_giocatore,cJSON *body);
-void ServerPareggio(char* buffer, GIOCATORE*nuovo_giocatore,cJSON *body);
-void ServerVittoria(char* buffer, GIOCATORE*nuovo_giocatore,cJSON *body);
-void ServerRifiutaRichiesta(char* buffer, GIOCATORE*nuovo_giocatore,cJSON *body);
-void ServerAccettaRichiesta(char* buffer, GIOCATORE*nuovo_giocatore,cJSON *body);
-void ServerRimuoviRichiesta(char* buffer, GIOCATORE*nuovo_giocatore,cJSON *body);
-void ServerAggiungiRichiesta(char* buffer, GIOCATORE*nuovo_giocatore,int*leave_flag,cJSON *body);
-void ServerNuovaPartita(char* buffer, GIOCATORE*nuovo_giocatore,int *leave_flag);
-void ServerAspettaPartita(char* buffer, GIOCATORE*nuovo_giocatore, int socket_nuovo);
-void ServerUscitaPareggio(char* buffer, GIOCATORE* nuovo_giocatore,cJSON *body);
+void serverMossaGioco(char *buffer, GIOCATORE* nuovoGiocatore,cJSON *body);
+
+void serverPareggio(char *buffer, GIOCATORE *nuovoGiocatore,cJSON *body);
+
+void serverVittoria(char *buffer, GIOCATORE *nuovoGiocatore,cJSON *body);
+
+void serverRifiutaRichiesta(char *buffer, GIOCATORE *nuovoGiocatore,cJSON *body);
+
+void serverAccettaRichiesta(char *buffer, GIOCATORE *nuovoGiocatore,cJSON *body);
+
+void serverRimuoviRichiesta(char *buffer, GIOCATORE *nuovoGiocatore,cJSON *body);
+
+void serverAggiungiRichiesta(char *buffer, GIOCATORE *nuovoGiocatore,cJSON *body);
+
+void serverNuovaPartita(char *buffer, GIOCATORE *nuovoGiocatore);
+
+void serverAspettaPartita(char *buffer, GIOCATORE *nuovoGiocatore, int socket_nuovo);
+
+void serverUscitaPareggio(char *buffer, GIOCATORE *nuovoGiocatore,cJSON *body);
+
+void serverRichiesteInviate(char *buffer, GIOCATORE *nuovoGiocatore,cJSON *body);
+
+void serverRichiesteRicevute(char *buffer, GIOCATORE *nuovoGiocatore,cJSON *body);
+
 
 #endif

@@ -1,6 +1,7 @@
 """Gestione delle azioni per richieste e partite nella home page"""
 
 import json
+import time
 from tkinter import messagebox
 from client_network import send_to_server
 from constants import STATO_IN_ATTESA, ERROR_SERVER_RESPONSE
@@ -145,33 +146,119 @@ class HomeActions:
             messagebox.showerror("Errore", f"Si è verificato un errore: {str(e)}")
 
     def upload_send_requests(self):
-        """Carica le richieste inviate"""
-        try:
-            response = send_to_server("/get_sent_requests", {})
-            data = json.loads(response)
-            if data.get("path") == "/send_requests":
-                self.home_page.request_manager.set_sent_requests(data.get("requests", []))
-                print("✅ Richieste inviate caricate con successo")
-            else:
-                messagebox.showerror("Errore", data.get("message", "Errore nel caricamento delle richieste inviate"))
+        """Carica le richieste inviate con retry in caso di risposta errata"""
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                print(f"🔄 DEBUG: Richiesta richieste inviate (tentativo {attempt + 1}/{max_retries})...")
+                response = send_to_server("/get_sent_requests", {})
+                print(f"🔄 DEBUG: Risposta ricevuta: {response}")
                 
-        except json.JSONDecodeError:
-            messagebox.showerror("Errore", ERROR_SERVER_RESPONSE)
-        except Exception as e:
-            messagebox.showerror("Errore", f"Si è verificato un errore: {str(e)}")
+                data = json.loads(response)
+                print(f"🔄 DEBUG: Data parsata: {data}")
+                
+                # Validazione: verifica che la risposta sia corretta per questa richiesta
+                if data.get("path") == "/send_requests":
+                    requests = data.get("requests", [])
+                    print(f"🔄 DEBUG: Richieste trovate: {len(requests)}")
+                    self.home_page.request_manager.set_sent_requests(requests)
+                    print("✅ Richieste inviate caricate con successo")
+                    return  # Successo, esci dalla funzione
+                elif "partite" in data:
+                    # Risposta di /waiting_games ricevuta per errore
+                    print(f"⚠️ DEBUG: Ricevuta risposta di /waiting_games invece di /get_sent_requests (tentativo {attempt + 1})")
+                    if attempt < max_retries - 1:
+                        time.sleep(2.0)  # Pausa più lunga prima del retry
+                        continue
+                elif data.get("path") == "/received_requests":
+                    # Risposta di /get_received_requests ricevuta per errore
+                    print(f"⚠️ DEBUG: Ricevuta risposta di /get_received_requests invece di /get_sent_requests (tentativo {attempt + 1})")
+                    if attempt < max_retries - 1:
+                        time.sleep(2.0)  # Pausa più lunga prima del retry
+                        continue
+                else:
+                    error_msg = data.get("message", "Errore nel caricamento delle richieste inviate")
+                    print(f"❌ DEBUG: Errore dal server: {error_msg}")
+                    messagebox.showerror("Errore", error_msg)
+                    return
+                    
+            except json.JSONDecodeError as e:
+                print(f"❌ DEBUG: Errore JSON decode: {e}")
+                print(f"❌ DEBUG: Risposta raw: {response}")
+                if attempt < max_retries - 1:
+                    time.sleep(2.0)
+                    continue
+                else:
+                    messagebox.showerror("Errore", ERROR_SERVER_RESPONSE)
+                    return
+            except Exception as e:
+                print(f"❌ DEBUG: Errore generico: {type(e).__name__}: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(2.0)
+                    continue
+                else:
+                    messagebox.showerror("Errore", f"Si è verificato un errore: {str(e)}")
+                    return
+        
+        # Se arriviamo qui, tutti i tentativi sono falliti
+        print("❌ DEBUG: Tutti i tentativi di caricamento richieste inviate falliti")
+        messagebox.showerror("Errore", "Impossibile caricare le richieste inviate dopo 3 tentativi")
     
     def upload_received_requests(self):
-        """Carica le richieste ricevute"""
-        try:
-            response = send_to_server("/get_received_requests", {})
-            data = json.loads(response)
-            if data.get("path") == "/received_requests":
-                self.home_page.request_manager.set_received_requests(data.get("requests", []))
-                print("✅ Richieste ricevute caricate con successo")
-            else:
-                messagebox.showerror("Errore", data.get("message", "Errore nel caricamento delle richieste ricevute"))
+        """Carica le richieste ricevute con retry in caso di risposta errata"""
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                print(f"🔄 DEBUG: Richiesta richieste ricevute (tentativo {attempt + 1}/{max_retries})...")
+                response = send_to_server("/get_received_requests", {})
+                print(f"🔄 DEBUG: Risposta ricevuta: {response}")
                 
-        except json.JSONDecodeError:
-            messagebox.showerror("Errore", ERROR_SERVER_RESPONSE)
-        except Exception as e:
-            messagebox.showerror("Errore", f"Si è verificato un errore: {str(e)}")
+                data = json.loads(response)
+                print(f"🔄 DEBUG: Data parsata: {data}")
+                
+                # Validazione: verifica che la risposta sia corretta per questa richiesta
+                if data.get("path") == "/received_requests":
+                    requests = data.get("requests", [])
+                    print(f"🔄 DEBUG: Richieste trovate: {len(requests)}")
+                    self.home_page.request_manager.set_received_requests(requests)
+                    print("✅ Richieste ricevute caricate con successo")
+                    return  # Successo, esci dalla funzione
+                elif "partite" in data:
+                    # Risposta di /waiting_games ricevuta per errore
+                    print(f"⚠️ DEBUG: Ricevuta risposta di /waiting_games invece di /get_received_requests (tentativo {attempt + 1})")
+                    if attempt < max_retries - 1:
+                        time.sleep(2.0)  # Pausa più lunga prima del retry
+                        continue
+                elif data.get("path") == "/send_requests":
+                    # Risposta di /get_sent_requests ricevuta per errore
+                    print(f"⚠️ DEBUG: Ricevuta risposta di /get_sent_requests invece di /get_received_requests (tentativo {attempt + 1})")
+                    if attempt < max_retries - 1:
+                        time.sleep(2.0)  # Pausa più lunga prima del retry
+                        continue
+                else:
+                    error_msg = data.get("message", "Errore nel caricamento delle richieste ricevute")
+                    print(f"❌ DEBUG: Errore dal server: {error_msg}")
+                    messagebox.showerror("Errore", error_msg)
+                    return
+                    
+            except json.JSONDecodeError as e:
+                print(f"❌ DEBUG: Errore JSON decode: {e}")
+                print(f"❌ DEBUG: Risposta raw: {response}")
+                if attempt < max_retries - 1:
+                    time.sleep(2.0)
+                    continue
+                else:
+                    messagebox.showerror("Errore", ERROR_SERVER_RESPONSE)
+                    return
+            except Exception as e:
+                print(f"❌ DEBUG: Errore generico: {type(e).__name__}: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(2.0)
+                    continue
+                else:
+                    messagebox.showerror("Errore", f"Si è verificato un errore: {str(e)}")
+                    return
+        
+        # Se arriviamo qui, tutti i tentativi sono falliti
+        print("❌ DEBUG: Tutti i tentativi di caricamento richieste ricevute falliti")
+        messagebox.showerror("Errore", "Impossibile caricare le richieste ricevute dopo 3 tentativi")

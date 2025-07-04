@@ -207,7 +207,9 @@ class HomePage(tk.Frame):
         # Carica le richieste inviate e ricevute al primo accesso alla home
         print("🔄 Caricamento iniziale richieste...")
         try:
+            # Serializza le richieste per evitare confusione nelle risposte
             self.actions.upload_send_requests()
+            time.sleep(1.0)  # Pausa più lunga tra le richieste per evitare mixing
             self.actions.upload_received_requests()
             print("✅ Caricamento richieste completato")
         except Exception as e:
