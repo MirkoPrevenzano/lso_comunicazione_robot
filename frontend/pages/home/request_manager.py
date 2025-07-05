@@ -20,15 +20,9 @@ class RequestManager:
                   for r in self.received_requests):
             self.received_requests.append(request)
             self._update_ui_if_needed("received_requests")
-            print(f"✅ Aggiunta richiesta ricevuta: {request}")
     
     def remove_received_request(self, player_id, game_id):
         """Rimuove una richiesta ricevuta."""
-        print(f"🔍 DEBUG: Tentativo rimozione player_id={player_id}, game_id={game_id}")
-        print(f"🔍 DEBUG: Lista attuale ({len(self.received_requests)} richieste):")
-        for i, req in enumerate(self.received_requests):
-            print(f"🔍 DEBUG:   {i}: {req}")
-        
         initial_count = len(self.received_requests)
         
         self.received_requests = [
@@ -39,13 +33,9 @@ class RequestManager:
         final_count = len(self.received_requests)
         removed_count = initial_count - final_count
         
-        print(f"🔍 DEBUG: Rimosse {removed_count} richieste (da {initial_count} a {final_count})")
-        print(f"🔍 DEBUG: Lista finale:")
-        for i, req in enumerate(self.received_requests):
-            print(f"🔍 DEBUG:   {i}: {req}")
-        
         self._update_ui_if_needed("received_requests")
-        print(f"🗑️ Rimossa richiesta ricevuta: player={player_id}, game={game_id}")
+        if removed_count > 0:
+            print(f"Rimossa richiesta ricevuta: player={player_id}, game={game_id}")
     
     def add_sent_request(self, request):
         """Aggiunge una nuova richiesta inviata."""
@@ -62,7 +52,7 @@ class RequestManager:
             if r['game_id'] != game_id
         ]
         self._update_ui_if_needed("sent_requests")
-        print(f"🗑️ Rimossa richiesta inviata: game={game_id}")
+        print(f"Rimossa richiesta inviata: game={game_id}")
     
     def update_sent_request_status(self, game_id, status):
         """Aggiorna lo stato di una richiesta inviata."""
@@ -70,7 +60,6 @@ class RequestManager:
             if request['game_id'] == game_id:
                 request['stato'] = status
                 self._update_ui_if_needed("sent_requests")
-                print(f"📝 Aggiornato stato richiesta {game_id}: {status}")
                 break
     
     def clear_all_requests(self):
@@ -78,7 +67,6 @@ class RequestManager:
         self.received_requests.clear()
         self.sent_requests.clear()
         self._update_ui_if_needed()
-        print("🧹 Tutte le richieste sono state pulite")
     
     def get_received_requests(self):
         """Restituisce la lista delle richieste ricevute."""

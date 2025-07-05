@@ -5,7 +5,7 @@ CARD_FRAME_STYLE = "Card.TFrame"
 ACCENT_BUTTON_STYLE = "Accent.TButton"
 
 # Stati richieste
-STATO_IN_ATTESA = "in attesa"
+STATO_IN_ATTESA = "in_attesa"
 STATO_ACCETTATA = "accettata"
 STATO_RIFIUTATA = "rifiutata"
 STATO_ANNULLATA = "annullata"

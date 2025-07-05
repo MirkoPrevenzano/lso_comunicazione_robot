@@ -57,7 +57,7 @@ class SelectBasedClient:
                 raise TimeoutError("Timeout in attesa della risposta dal server")
                 
         except Exception as e:
-            print(f"❌ Errore invio: {type(e).__name__}: {e}")
+            print(f"Errore invio: {type(e).__name__}: {e}")
             self.connected = False
             raise
                 
@@ -76,8 +76,6 @@ class SelectBasedClient:
                 return []
             
             self.receive_buffer += new_data
-            print(f"🔍 DEBUG: Buffer ricevuto: {repr(new_data)}")
-            print(f"🔍 DEBUG: Buffer totale: {repr(self.receive_buffer)}")
             
             messages = []
             while True:
@@ -103,24 +101,20 @@ class SelectBasedClient:
                     self.receive_buffer = self.receive_buffer[end_pos:].strip()
                     
                     if json_message:
-                        print(f"🔍 DEBUG: Messaggio estratto: {repr(json_message)}")
                         try:
                             parsed = json.loads(json_message)
                             messages.append(parsed)
-                            print(f"🔍 DEBUG: Messaggio parsato correttamente: {parsed}")
                         except json.JSONDecodeError as e:
-                            print(f"❌ DEBUG: Errore parsing messaggio: {json_message}")
-                            print(f"❌ DEBUG: Errore: {e}")
+                            print(f"Errore parsing messaggio JSON: {e}")
                     
                 except Exception as e:
-                    print(f"❌ DEBUG: Errore nel loop di parsing: {e}")
+                    print(f"Errore nel loop di parsing: {e}")
                     break
             
-            print(f"🔍 DEBUG: Messaggi restituiti ({len(messages)}): {messages}")
             return messages
             
         except Exception as e:
-            print(f"❌ Errore in check_server_messages: {type(e).__name__}: {e}")
+            print(f"Errore in check_server_messages: {type(e).__name__}: {e}")
             return []
     
     def close(self):

@@ -78,7 +78,6 @@ class LoginPage(tk.Frame):
                 player_id = -1
         except (json.JSONDecodeError, TypeError):
             player_id = -1
-            print("❌ Errore nel parsing della risposta del server")
             
         # Gestione del fallimento della registrazione
         if(player_id > -1):
@@ -88,7 +87,6 @@ class LoginPage(tk.Frame):
             self.controller.show_frame("HomePage")
         else:
             self.status_label.config(text="Errore nel login - Chiusura applicazione...", foreground="red")
-            print("❌ Login fallito, chiusura applicazione...")
             
             # Attendi un momento per mostrare il messaggio, poi chiudi
             self.after(2000, self.close_application)
@@ -99,15 +97,14 @@ class LoginPage(tk.Frame):
             # Chiudi le connessioni di rete se esistono
             from client_network import close_connections
             close_connections()
-            print("🔌 Connessioni chiuse")
         except Exception as e:
-            print(f"⚠️ Errore durante la chiusura delle connessioni: {e}")
+            print(f"Errore durante la chiusura delle connessioni: {e}")
         
         # Chiudi la finestra principale
         try:
             self.controller.quit()  # Esce dal mainloop
             self.controller.destroy()  # Distrugge la finestra
         except Exception as e:
-            print(f"⚠️ Errore durante la chiusura dell'interfaccia: {e}")
+            print(f"Errore durante la chiusura dell'interfaccia: {e}")
         
         print("👋 Applicazione chiusa")

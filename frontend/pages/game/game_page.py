@@ -123,8 +123,6 @@ class GamePage(tk.Frame):
         # TRIS arriva come string di 9 caratteri (es: "000120000")
         tris_string = dati_game.get("TRIS", "000000000")
         
-        print(f"🔧 DEBUG: TRIS ricevuto: '{tris_string}'")
-        
         # Converte la stringa di 9 caratteri in matrice 3x3
         self.TRIS = [[0 for _ in range(3)] for _ in range(3)]
         for i in range(9):
@@ -216,7 +214,6 @@ class GamePage(tk.Frame):
     def _gestisci_messaggio(self, messaggio, esito):
         """Richiede se vuole rifare una nuova partita."""
         result =messagebox.askyesno("Nuova Partita:", messaggio)
-        print(f"🔧 DEBUG: Risposta alla richiesta di nuova partita: {result}")
         self.reset_game()
         if(esito == 1):
             path = "/vittoria_game"
