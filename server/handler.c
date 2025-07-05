@@ -458,6 +458,8 @@ void serverRichiesteRicevute(char* buffer, GIOCATORE*nuovoGiocatore,cJSON *body)
                     cJSON_AddNumberToObject(request_json, "player_id", Partite[i]->richieste[j]->giocatore->id);
                     cJSON_AddStringToObject(request_json,  "mittente", Partite[i]->richieste[j]->giocatore->nome);
                     cJSON_AddItemToArray(cJSON_GetObjectItem(response, "requests"), request_json);
+                    printf("Richiesta trovata per il giocatore %s nella partita %d\n", Partite[i]->giocatoreParticipante[0]->nome, Partite[i]->id);
+
                 }
             }
         }

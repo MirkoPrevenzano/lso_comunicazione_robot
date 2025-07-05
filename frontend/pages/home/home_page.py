@@ -172,9 +172,11 @@ class HomePage(tk.Frame):
             self.update_waiting_games()
         elif view_type == "received_requests":
             self.section_title.config(text="Richieste ricevute...")
+            self.actions.upload_received_requests()
             self.update_received_requests()
         elif view_type == "sent_requests":
             self.section_title.config(text="Richieste effettuate...")
+            self.actions.upload_send_requests()
             self.update_sent_requests()
 
     def periodic_update_content(self):
@@ -204,17 +206,6 @@ class HomePage(tk.Frame):
         self.change_view(self.current_view)
         self.periodic_update_content()
         
-        # Carica le richieste inviate e ricevute al primo accesso alla home
-        print("🔄 Caricamento iniziale richieste...")
-        try:
-            # Serializza le richieste per evitare confusione nelle risposte
-            self.actions.upload_send_requests()
-            time.sleep(0.1)  # Pausa più lunga tra le richieste per evitare mixing
-            self.actions.upload_received_requests()
-            print("✅ Caricamento richieste completato")
-        except Exception as e:
-            print(f"⚠️ Errore durante il caricamento delle richieste: {e}")
-            # Non mostriamo messagebox qui per evitare di bloccare l'interfaccia
         
         # Avvia il polling del server tramite il manager centralizzato
         self.controller.start_global_polling()

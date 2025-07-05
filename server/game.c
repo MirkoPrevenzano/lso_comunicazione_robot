@@ -7,15 +7,21 @@ extern void handlerInviaMossePartita(GIOCATORE* giocatore, GIOCO* partita);
 void aggiungiGiocoQueue(GIOCO *nuova_partita,GIOCATORE* giocatoreProprietario){
 
     // MODIFICA: Controllo parametri null prima di procedere
-    if (!nuova_partita || !giocatoreProprietario) {
-        fprintf(stderr, "Parametri non validi\n");
+
+    if(!giocatoreProprietario) {
         return;
     }
+    if (!nuova_partita) {
+        // Non usare giocatoreProprietario se è NULL
+        return;
+    }
+
+    
 
 
     // MODIFICA: Controllo numero partite ora protetto dal mutex
     if(numeroPartite>=MAX_GAME){
-        // MODIFICA: Sostituito perror con fprintf per errore logico
+        inviaMessaggioSuccesso(0, giocatoreProprietario->socket, "Numero massimo di partite raggiunto");
         fprintf(stderr, "numero max partite superato\n");
         return;
     }
@@ -55,6 +61,7 @@ void aggiungiGiocoQueue(GIOCO *nuova_partita,GIOCATORE* giocatoreProprietario){
     }
     numeroPartite++;
     printf("Partita creata con id: %d indice %d\n",nuova_partita->id, i);
+    inviaMessaggioSuccessoNuovaPartita(1,giocatoreProprietario,nuova_partita->id);
     fflush(stdout);
 };
 
@@ -107,8 +114,7 @@ void nuovaPartita(char*buffer,GIOCATORE*giocatore){
     
     aggiungiGiocoQueue(nuova_partita,giocatore);
     
-    // MODIFICA: Rimosso controllo ridondante, nuova_partita è sempre valida qui
-    inviaMessaggioSuccessoNuovaPartita(1,giocatore, nuova_partita->id);
+    
     printf("Partita creata con id: %d\n",nuova_partita->id);
     fflush(stdout);
     printf("Giocatore %s ha creato una partita\n",giocatore->nome);
