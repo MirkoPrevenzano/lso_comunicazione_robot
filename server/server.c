@@ -7,7 +7,6 @@ int numeroPartite = 0;
 GIOCO* Partite[MAX_GAME] = { NULL };
 GIOCATORE* Giocatori[MAX_GIOCATORI] = { NULL };
 
-pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER; 
 pthread_mutex_t playerListLock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t gameListLock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -222,6 +221,7 @@ void *handleClose(void *arg) {
 
             if (n <= 0) { // Il socket e' stato chiuso
                 printf("⚠️ Client %s disconnesso (monitor)\n", giocatore->nome);
+                printf("ID giocatore: %d\n", giocatore->stato);
                 if(giocatore->stato==IN_GIOCO){//gestione di eventuali partite aperte 
                     inviaVittoriaAltroGiocatore(giocatore);
                     printf("⚠️ Client %s è uscito dalla partita\n", giocatore->nome);

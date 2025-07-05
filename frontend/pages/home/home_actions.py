@@ -168,13 +168,13 @@ class HomeActions:
                     # Risposta di /waiting_games ricevuta per errore
                     print(f"⚠️ DEBUG: Ricevuta risposta di /waiting_games invece di /get_sent_requests (tentativo {attempt + 1})")
                     if attempt < max_retries - 1:
-                        time.sleep(2.0)  # Pausa più lunga prima del retry
+                        time.sleep(0.2)  # Pausa più lunga prima del retry
                         continue
                 elif data.get("path") == "/received_requests":
                     # Risposta di /get_received_requests ricevuta per errore
                     print(f"⚠️ DEBUG: Ricevuta risposta di /get_received_requests invece di /get_sent_requests (tentativo {attempt + 1})")
                     if attempt < max_retries - 1:
-                        time.sleep(2.0)  # Pausa più lunga prima del retry
+                        time.sleep(0.2)  # Pausa più lunga prima del retry
                         continue
                 else:
                     error_msg = data.get("message", "Errore nel caricamento delle richieste inviate")
@@ -186,7 +186,7 @@ class HomeActions:
                 print(f"❌ DEBUG: Errore JSON decode: {e}")
                 print(f"❌ DEBUG: Risposta raw: {response}")
                 if attempt < max_retries - 1:
-                    time.sleep(2.0)
+                    time.sleep(0.5)
                     continue
                 else:
                     messagebox.showerror("Errore", ERROR_SERVER_RESPONSE)

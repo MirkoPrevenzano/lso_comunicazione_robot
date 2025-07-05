@@ -27,7 +27,7 @@ void aggiungiGiocoQueue(GIOCO *nuova_partita,GIOCATORE* giocatoreProprietario){
         if(!Partite[i] && !trovato){
             Partite[i]=nuova_partita;
             Partite[i]->giocatoreParticipante[0] = giocatoreProprietario;
-            Partite[i]->id=numeroPartite;
+            Partite[i]->id=i;
             Partite[i]->numeroRichieste = 0; // MODIFICA: Inizializza numeroRichieste
             
             // MODIFICA: Inizializza tutto l'array richieste a NULL
@@ -487,6 +487,8 @@ GIOCO*cercaPartitaInCorsoByGiocatore(GIOCATORE*giocatore){
     for(int i=0;i< MAX_GAME ; i++){
         if(Partite[i] && (Partite[i]->giocatoreParticipante[0] == giocatore || Partite[i]->giocatoreParticipante[1] == giocatore ) && Partite[i]->statoPartita==IN_CORSO){
             pthread_mutex_unlock(&gameListLock);
+            printf("Partita trovata per il giocatore %s con id: %d\n", giocatore->nome, Partite[i]->id);
+            fflush(stdout);
             return Partite[i];
         }
     }
@@ -609,7 +611,7 @@ void inviaMessaggioRivincita(GIOCATORE *giocatore,int risposta,GIOCO*partita){
             cJSON_AddNumberToObject(root, "game_id", partita->id);
             if(giocatore->id == partita->giocatoreParticipante[0]->id) {
                 cJSON_AddStringToObject(root, "simbolo", "X");
-                cJSON_AddStringToObject(root, "nome_partecipante", partita->giocatoreParticipante[1]->nome);//non dovrebbe essere il contario?
+                cJSON_AddStringToObject(root, "nome_partecipante", partita->giocatoreParticipante[1]->nome);
             } else {
                 cJSON_AddStringToObject(root, "simbolo", "O");
                 cJSON_AddStringToObject(root, "nome_partecipante", partita->giocatoreParticipante[0]->nome);
@@ -623,7 +625,6 @@ void inviaMessaggioRivincita(GIOCATORE *giocatore,int risposta,GIOCO*partita){
             free(msg);
             sleep(1);
             pthread_mutex_lock(&gameListLock);
-            resetGioco(partita); // Reset della partita per la nuova sessione
             handlerInviaMossePartita(giocatore,partita);
             pthread_mutex_unlock(&gameListLock);
         }

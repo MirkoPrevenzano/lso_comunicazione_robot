@@ -248,6 +248,8 @@ class GamePage(tk.Frame):
             self.controller.shared_data['game_id'] = data.get("game_id", "")
             self.id = data.get("game_id", "")
             self.nomePartecipante = data.get("nome_partecipante", "")
+            self.simbolo_assegnato = data.get("simbolo", "")
+            self._assegna_simbolo()
         else:
             messagebox.showerror("Rivincita rifiutata", data.get("message", "Errore sconosciuto"))
             self.reset_game()

@@ -209,7 +209,7 @@ class HomePage(tk.Frame):
         try:
             # Serializza le richieste per evitare confusione nelle risposte
             self.actions.upload_send_requests()
-            time.sleep(1.0)  # Pausa più lunga tra le richieste per evitare mixing
+            time.sleep(0.1)  # Pausa più lunga tra le richieste per evitare mixing
             self.actions.upload_received_requests()
             print("✅ Caricamento richieste completato")
         except Exception as e:
@@ -242,11 +242,28 @@ class HomePage(tk.Frame):
         if self._last_games_data is None:
             return True
         
-        # Confronta le liste convertendo in stringhe per un confronto semplice
-        old_data = str(sorted(self._last_games_data, key=lambda x: x.get('id_partita', 0)))
-        new_data = str(sorted(new_games, key=lambda x: x.get('id_partita', 0)))
+        # Verifica se il numero di partite è cambiato
+        if len(self._last_games_data) != len(new_games):
+            return True
         
-        return old_data != new_data
+        # Crea dizionari ordinati per confronto completo di tutti i campi
+        def normalize_game_data(games):
+            """Normalizza i dati delle partite per il confronto"""
+            normalized = []
+            for game in games:
+                normalized_game = {
+                    'id_partita': game.get('id_partita', 0),
+                    'proprietario': game.get('proprietario', ''),
+                }
+                normalized.append(normalized_game)
+            # Ordina per id_partita per confronto consistente
+            return sorted(normalized, key=lambda x: x['id_partita'])
+        
+        old_normalized = normalize_game_data(self._last_games_data)
+        new_normalized = normalize_game_data(new_games)
+        
+        # Confronta le strutture dati complete
+        return old_normalized != new_normalized
 
     def update_waiting_games(self):
         """Aggiorna la lista delle partite in attesa solo se i dati sono cambiati"""
