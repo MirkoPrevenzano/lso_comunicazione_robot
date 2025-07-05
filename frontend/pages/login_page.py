@@ -42,7 +42,7 @@ class LoginPage(tk.Frame):
 
         send_button = ttk.Button(
             input_frame, 
-            text="⮕", 
+            text="->", 
             command=self.on_login_button_click, 
             style="Accent.TButton"
         )

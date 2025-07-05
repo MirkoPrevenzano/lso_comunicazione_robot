@@ -180,6 +180,15 @@ class HomePage(tk.Frame):
             self.update_sent_requests()
 
     def periodic_update_content(self):
+        # Controlla se l'applicazione è ancora attiva prima di continuare
+        try:
+            if not self.winfo_exists() or not hasattr(self, 'controller') or not self.controller.winfo_exists():
+                print("⚠ App in chiusura - stop periodic update")
+                return
+        except Exception:
+            print("⚠ App già chiusa - stop periodic update")
+            return
+            
         self._content_after_id = self.after(3000, self.periodic_update_content)
         if self.current_view == "waiting_games":
              self.update_waiting_games()
@@ -258,54 +267,88 @@ class HomePage(tk.Frame):
 
     def update_waiting_games(self):
         """Aggiorna la lista delle partite in attesa solo se i dati sono cambiati"""
+        # Controlla se l'applicazione è ancora attiva
+        try:
+            if not self.winfo_exists() or not hasattr(self, 'controller') or not self.controller.winfo_exists():
+                print("⚠ App in chiusura - skip update waiting games")
+                return
+        except Exception:
+            print("⚠ App già chiusa - skip update waiting games")
+            return
+            
         try:
             print("🔄 Richiesta partite in attesa...")
             response = send_to_server("/waiting_games", {})
             print(f"🔄 Ricevuta risposta: {response}")
             
-            try:
-                data = json.loads(response)
-                
-                # ✅ CONTROLLA SE LA RISPOSTA È UNA RICHIESTA PUSH INVECE CHE PARTITE
-                if data.get("path") == "/new_request":
-                    print(f"🔔 Ricevuta richiesta push nella risposta: {data}")
-                    # Gestisci come richiesta push
-                    new_request = {
-                        'game_id': data.get('game_id'),
-                        'player_id': data.get('player_id'),
-                        'mittente': data.get('player_name', 'Sconosciuto'),
-                    }
-                    self.request_manager.add_received_request(new_request)
-                    print("🔔 Richiesta aggiunta dalla risposta diretta!")
-                    
-                    # Riprova a richiedere le partite
-                    response = send_to_server("/waiting_games", {})
-                    data = json.loads(response)
-                
-                games = data.get("partite", [])
-                print(f"🔄 Partite parsate: {games}")
-                
-                # ✅ CONTROLLO CACHE: Aggiorna UI solo se i dati sono cambiati
-                if not self._games_data_changed(games):
-                    print("📋 Nessun cambiamento nei dati delle partite - skip aggiornamento UI")
-                    return
-                
-                # Aggiorna la cache
-                self._last_games_data = games.copy() if games else []
-                print("🔄 Dati delle partite cambiati - aggiornamento UI necessario")
-                                   
-            except json.JSONDecodeError as e:
-                print(f"❌ Errore parsing JSON: {e}")
+            # Controlla se la risposta è vuota o None
+            if not response or response.strip() == "":
+                print("⚠ Risposta vuota dal server - utilizzo lista vuota")
                 games = []
+            else:
+                try:
+                    data = json.loads(response)
+                    
+                    # ✅ CONTROLLA SE LA RISPOSTA È UNA RICHIESTA PUSH INVECE CHE PARTITE
+                    if data.get("path") == "/new_request":
+                        print(f"🔔 Ricevuta richiesta push nella risposta: {data}")
+                        # Gestisci come richiesta push
+                        new_request = {
+                            'game_id': data.get('game_id'),
+                            'player_id': data.get('player_id'),
+                            'mittente': data.get('player_name', 'Sconosciuto'),
+                        }
+                        self.request_manager.add_received_request(new_request)
+                        print("🔔 Richiesta aggiunta dalla risposta diretta!")
+                        
+                        # Riprova a richiedere le partite
+                        response = send_to_server("/waiting_games", {})
+                        if not response or response.strip() == "":
+                            print("⚠ Seconda risposta vuota dal server - utilizzo lista vuota")
+                            data = {"partite": []}
+                        else:
+                            data = json.loads(response)
+                    
+                    games = data.get("partite", [])
+                    print(f"🔄 Partite parsate: {games}")
+                    
+                    # ✅ CONTROLLO CACHE: Aggiorna UI solo se i dati sono cambiati
+                    if not self._games_data_changed(games):
+                        print("📋 Nessun cambiamento nei dati delle partite - skip aggiornamento UI")
+                        return
+                    
+                    # Aggiorna la cache
+                    self._last_games_data = games.copy() if games else []
+                    print("🔄 Dati delle partite cambiati - aggiornamento UI necessario")
+                                       
+                except json.JSONDecodeError as e:
+                    print(f"✗ Errore parsing JSON: {e}")
+                    print(f"✗ Risposta problematica: '{response}'")
+                    games = []
                 
         except ConnectionError as e:
-            print(f"❌ Errore di connessione: {e}")
+            print(f"✗ Errore di connessione: {e}")
             games = []
-            messagebox.showerror("Errore di connessione", "Impossibile connettersi al server. Verifica la connessione e riprova.")
+            # Controlla se l'applicazione è ancora attiva prima di mostrare messagebox
+            try:
+                if self.winfo_exists() and hasattr(self, 'controller') and self.controller.winfo_exists():
+                    # Mostra l'errore solo se non è un errore ripetuto
+                    if not hasattr(self, '_last_connection_error') or self._last_connection_error != str(e):
+                        self._safe_show_error("Errore di connessione", "Impossibile connettersi al server. Verifica la connessione e riprova.")
+                        self._last_connection_error = str(e)
+            except Exception:
+                # Se anche il controllo fallisce, logga solo l'errore
+                print("✗ Impossibile mostrare dialog di errore: applicazione in chiusura")
+                
         except Exception as e:
-            print(f"❌ Errore generico: {type(e).__name__}: {e}")
+            print(f"✗ Errore generico: {type(e).__name__}: {e}")
             games = []
-            messagebox.showerror("Errore", f"Si è verificato un errore: {str(e)}")
+            # Controlla se l'applicazione è ancora attiva prima di mostrare messagebox
+            try:
+                if self.winfo_exists() and hasattr(self, 'controller') and self.controller.winfo_exists():
+                    self._safe_show_error("Errore", f"Si è verificato un errore: {str(e)}")
+            except Exception:
+                print("✗ Impossibile mostrare dialog di errore: applicazione in chiusura")
      
 
         # Aggiorna UI solo se necessario
@@ -351,3 +394,61 @@ class HomePage(tk.Frame):
         print(f"🔄 Aggiornamento UI richieste inviate: {len(sent_requests)} richieste")
         for request in sent_requests:
             self.widgets.add_sent_request_widget(request)
+
+    def _safe_show_error(self, title, message):
+        """Mostra un messagebox di errore in modo sicuro, evitando errori quando l'app è in chiusura"""
+        try:
+            # Verifica che l'applicazione sia ancora attiva
+            if self.winfo_exists() and hasattr(self, 'controller') and self.controller.winfo_exists():
+                # Mostra il messagebox con un timeout automatico usando after()
+                self._show_error_with_timeout(title, message)
+            else:
+                print(f"⚠ App in chiusura - errore non mostrato: {title}: {message}")
+        except Exception as e:
+            print(f"⚠ Impossibile mostrare errore - app probabilmente in chiusura: {e}")
+
+    def _show_error_with_timeout(self, title, message):
+        """Mostra un dialog di errore che si chiude automaticamente dopo 3 secondi"""
+        try:
+            # Crea una finestra di errore personalizzata
+            error_window = tk.Toplevel(self)
+            error_window.title(title)
+            error_window.geometry("350x150")
+            error_window.resizable(False, False)
+            error_window.configure(bg="#ffebee")
+            
+            # Centra la finestra
+            error_window.transient(self)
+            error_window.grab_set()
+            
+            # Frame per il contenuto
+            frame = tk.Frame(error_window, bg="#ffebee")
+            frame.pack(expand=True, fill="both", padx=20, pady=20)
+            
+            # Icona e messaggio
+            icon_label = tk.Label(frame, text="⚠", font=("Arial", 24), bg="#ffebee", fg="#d32f2f")
+            icon_label.pack(pady=(0, 10))
+            
+            msg_label = tk.Label(frame, text=message, wraplength=300, justify="center", 
+                               bg="#ffebee", fg="#d32f2f")
+            msg_label.pack(pady=(0, 15))
+            
+            # Bottone OK
+            ok_btn = tk.Button(frame, text="OK", command=error_window.destroy, 
+                             bg="#d32f2f", fg="white", padx=30)
+            ok_btn.pack()
+            
+            # Auto-chiusura dopo 3 secondi
+            def auto_close():
+                try:
+                    if error_window.winfo_exists():
+                        error_window.destroy()
+                except Exception:
+                    pass
+            
+            error_window.after(3000, auto_close)
+            
+        except Exception as e:
+            # Fallback: stampa solo l'errore
+            print(f"⚠ {title}: {message}")
+            print(f"⚠ Errore creazione dialog: {e}")
