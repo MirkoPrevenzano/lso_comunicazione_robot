@@ -569,7 +569,7 @@ void gestionePareggioGioco(GIOCO* partita, GIOCATORE* giocatore, bool risposta) 
         inviaMessaggioRivincita(giocatore1, 0, NULL);
         pthread_mutex_unlock(&gameListLock);
 
-        
+   
         return;
     }
     
@@ -608,8 +608,10 @@ void inviaMessaggioRivincita(GIOCATORE *giocatore,int risposta,GIOCO*partita){
             cJSON_AddNumberToObject(root, "success", 1);
             cJSON_AddNumberToObject(root, "game_id", partita->id);
             if(giocatore->id == partita->giocatoreParticipante[0]->id) {
-                cJSON_AddStringToObject(root, "nome_partecipante", partita->giocatoreParticipante[1]->nome);
+                cJSON_AddStringToObject(root, "simbolo", "X");
+                cJSON_AddStringToObject(root, "nome_partecipante", partita->giocatoreParticipante[1]->nome);//non dovrebbe essere il contario?
             } else {
+                cJSON_AddStringToObject(root, "simbolo", "O");
                 cJSON_AddStringToObject(root, "nome_partecipante", partita->giocatoreParticipante[0]->nome);
             }
             
