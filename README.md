@@ -154,14 +154,7 @@ chmod +x *.sh
 ./docker-run.sh all
 ```
 
-### Verifica Installazione
-```bash
-# Testa GUI
-xeyes
 
-# Verifica Docker
-docker --version
-docker compose version
 
 # Controlla container attivi
 sudo docker ps --filter "name=tris"
