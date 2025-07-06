@@ -138,7 +138,9 @@ void inviaMessaggioSuccesso(int success, int socket, const char* message){
     } else {
         printf("Risposta JSON inviata: %s\n", json_string);
     }
-    cJSON_Delete(response); // Libera la memoria allocata per la risposta
+    cJSON_Delete(response); // Libera la memoria allocata per la rispostaù
+    free(json_string); // Libera la stringa JSON
+    
     
 }
 
