@@ -123,18 +123,46 @@ sudo docker network ls | grep tris
 
 
 
-## 📦 Prerequisiti Altri PC
+## 📦 Setup su Altri PC
 
+### Prerequisiti Sistema
 ```bash
-# Installa Docker
+# Installa Docker e Docker Compose
+sudo apt update
 sudo apt install docker.io docker-compose-plugin
 
-# Installa X11
+# Installa X11 per GUI
 sudo apt install x11-xserver-utils xauth
 
-# Copia progetto e esegui
-git clone <repo> && cd <project>
+# Aggiungi utente al gruppo docker (opzionale, evita sudo)
+sudo usermod -aG docker $USER
+# Riavvia la sessione per applicare le modifiche
+```
+
+### Clona e Avvia il Progetto
+```bash
+# Clona il repository
+git clone <https://github.com/MirkoPrevenzano/lso_tris.git>
+
+# Rendi eseguibili gli script
 chmod +x *.sh
+
+# Costruisci le immagini Docker
 ./docker-run.sh build
+
+# Avvia il sistema completo
 ./docker-run.sh all
+```
+
+### Verifica Installazione
+```bash
+# Testa GUI
+xeyes
+
+# Verifica Docker
+docker --version
+docker compose version
+
+# Controlla container attivi
+sudo docker ps --filter "name=tris"
 ```
